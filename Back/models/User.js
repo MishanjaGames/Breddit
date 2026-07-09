@@ -8,8 +8,7 @@ const userSchema = new Schema({
         required: true,
         unique: true,
         trim: true,
-        minlength: 3,
-        maxlength: 20
+        minlength: 3
     },
     email: {
         type: String,
@@ -20,8 +19,7 @@ const userSchema = new Schema({
     },
     password: {
         type: String,
-        required: true,
-        select: false
+        required: true
     },
     avatar: {
         type: String,
@@ -35,15 +33,15 @@ const userSchema = new Schema({
     timestamps: true
 });
 
-userSchema.pre('save', async function (next) {
-    if (!this.isModified('password')) return next();
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-});
+// userSchema.pre('save', async function (next) {
+//     if (!this.isModified('password')) return next();
+//     const salt = await bcrypt.genSalt(10);
+//     this.password = await bcrypt.hash(this.password, salt);
+//     next();
+// });
 
-userSchema.methods.comparePassword = async function (candidatePassword) {
-    return bcrypt.compare(candidatePassword, this.password);
-};
+// userSchema.methods.comparePassword = async function (candidatePassword) {
+//     return bcrypt.compare(candidatePassword, this.password);
+// };
 
 module.exports = mongoose.model('User', userSchema);

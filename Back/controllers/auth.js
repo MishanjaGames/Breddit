@@ -9,7 +9,9 @@ module.exports.login = async (req, res) => {
     // res.status(200).json({
     //     method: 'login...'
     // })
+    console.log(req.body)
     const userDb = await User.findOne({ email: req.body.email })
+    console.log(userDb)
     if (userDb) {
         const isRulePassw = bcrypt.compareSync(req.body.password, userDb.password)
 
@@ -39,6 +41,7 @@ module.exports.login = async (req, res) => {
 }
 
 module.exports.register = async (req, res) => {
+    console.log(req.body)
     // res.status(201).json({
     //     method: 'register...',
     //     email: req.body.email,
@@ -60,7 +63,8 @@ module.exports.register = async (req, res) => {
         const newUser = new User({
             email: req.body.email,
             // password: req.body.password
-            password: passw
+            password: passw,
+            nickname: req.body.nickname
         })
 
         try {

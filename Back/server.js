@@ -25,8 +25,8 @@ app.use(bodyParser.urlencoded({ extended: true }))
 app.use(bodyParser.json())
 
 // Подключаем passport и его JWT-стратегию
-app.use(passport.initialize())
-require('./middleware/passport')(passport)
+// app.use(passport.initialize())
+// require('./middleware/passport')(passport)
 
 // Роуты
 app.use('/api/auth', require('./routes/auth'))
