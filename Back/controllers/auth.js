@@ -5,77 +5,115 @@ const User = require('../models/User')
 const errorHandler = require('../utils/errorHandler')
 const keys = require('../config/keys')
 
+const createToken = (user) => jwt.sign({
+    userId: user._id,
+    email: user.email,
+    nickname: user.nickname
+}, keys.jwtKey, { expiresIn: '2h' })
+
+const buildUserResponse = (user) => ({
+    id: user._id,
+    email: user.email,
+    nickname: user.nickname,
+    avatar: user.avatar,
+    karma: user.karma
+})
+
 module.exports.login = async (req, res) => {
-    // res.status(200).json({
-    //     method: 'login...'
-    // })
-    console.log(req.body)
-    const userDb = await User.findOne({ email: req.body.email })
-    console.log(userDb)
-    if (userDb) {
-        const isRulePassw = bcrypt.compareSync(req.body.password, userDb.password)
+    try {
+        const email = req.body.email.toLowerCase()
+        const userDb = await User.findOne({ email })
 
-        if (isRulePassw) {
-
-            const token = jwt.sign({
-                email: userDb.email,
-                userId: userDb._id
-            }, keys.jwtKey , {expiresIn: 60*60*2})
-
-            res.status(200).json({
-                token: `Bearer ${token}`
-            })
-
-        } else {
-            // res.status(401).json({
-            //     error: 'not found user'
-            // })
-            errorHandler(res, 401, 'not found user')
+        if (!userDb) {
+            return res.status(404).json({ success: false, message: 'User not found' })
         }
-    } else {
-        // res.status(404).json({
-        //     error: 'not found user'
-        // })
-        errorHandler(res, 404, 'not found user')
+
+        const isRulePassw = await userDb.comparePassword(req.body.password)
+
+        if (!isRulePassw) {
+            return res.status(401).json({ success: false, message: 'Invalid password' })
+        }
+
+        const token = createToken(userDb)
+
+        return res.status(200).json({
+            success: true,
+            token: `Bearer ${token}`,
+            user: buildUserResponse(userDb)
+        })
+    } catch (e) {
+        return res.status(500).json({ success: false, message: e.message || e })
     }
 }
 
 module.exports.register = async (req, res) => {
-    console.log(req.body)
-    // res.status(201).json({
-    //     method: 'register...',
-    //     email: req.body.email,
-    //     password: req.body.password
-    // })
-    const userDb = await User.findOne({ email: req.body.email })
-    console.log(userDb)
+    try {
+        const existingUser = await User.findOne({ email: req.body.email.toLowerCase() })
 
-    if (userDb) {
-        // res.status(409).json({
-        //     error: 'Error, email'
-        // })
-        errorHandler(res, 409, 'Error, email')
-    } else  {
-
-        const salt = bcrypt.genSaltSync(777)
-        const passw = bcrypt.hashSync(req.body.password, salt)
+        if (existingUser) {
+            return res.status(409).json({ success: false, message: 'Email already registered' })
+        }
 
         const newUser = new User({
-            email: req.body.email,
-            // password: req.body.password
-            password: passw,
-            nickname: req.body.nickname
+            email: req.body.email.toLowerCase(),
+            password: req.body.password,
+            nickname: req.body.nickname.trim()
         })
 
-        try {
-            await newUser.save()
-            res.status(201).json(newUser)
-            
-        } catch (e) {
-            // res.status(500).json({
-            //     error: e.message ? e.message : 'error ...'
-            // })
-            errorHandler(res, 500, e)
+        await newUser.save()
+        const token = createToken(newUser)
+
+        return res.status(201).json({
+            success: true,
+            token: `Bearer ${token}`,
+            user: buildUserResponse(newUser)
+        })
+    } catch (e) {
+        return res.status(500).json({ success: false, message: e.message || e })
+    }
+}
+
+module.exports.me = async (req, res) => {
+    try {
+        return res.status(200).json({
+            success: true,
+            user: buildUserResponse(req.user)
+        })
+    } catch (e) {
+        return res.status(500).json({ success: false, message: e.message || e })
+    }
+}
+
+module.exports.logout = async (req, res) => {
+    return res.status(200).json({
+        success: true,
+        message: 'Logged out successfully'
+    })
+}
+
+module.exports.refresh = async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization || ''
+        const token = authHeader.split('Bearer ')[1]
+
+        if (!token) {
+            return res.status(400).json({ success: false, message: 'Token is required' })
         }
+
+        const decoded = jwt.verify(token, keys.jwtKey)
+        const user = await User.findById(decoded.userId).select('-password')
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' })
+        }
+
+        const refreshedToken = createToken(user)
+
+        return res.status(200).json({
+            success: true,
+            token: `Bearer ${refreshedToken}`
+        })
+    } catch (e) {
+        return res.status(401).json({ success: false, message: e.message || e })
     }
 }

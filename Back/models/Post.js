@@ -24,11 +24,17 @@ const postSchema = new Schema({
     },
     comments: [{
         type: Schema.Types.ObjectId,
-        ref: 'Comment'          
-    }]
-
+        ref: 'Comment'
+    }],
+    karma: {
+        type: Number,
+        default: 0
+    }
 }, {
     timestamps: true
 });
-//Реализация коментов
+
+postSchema.index({ category: 1, createdAt: -1 });
+postSchema.index({ author: 1 });
+
 module.exports = mongoose.model('Post', postSchema);
