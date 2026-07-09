@@ -27,7 +27,7 @@ exports.vote = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Target not found' });
         }
 
-        const existingVote = await Vote.findOne({ user: userId, target: targetId });
+        const existingVote = await Vote.findOne({ author: userId, target: targetId });
 
         if (existingVote) {
             if (existingVote.value === value) {
@@ -41,7 +41,7 @@ exports.vote = async (req, res) => {
             return res.status(200).json({ success: true, message: 'Vote updated' });
         }
 
-        const vote = new Vote({ user: userId, targetType, target: targetId, value });
+        const vote = new Vote({ author: userId, targetType, target: targetId, value });
         await vote.save();
         await updateKarma(targetType, targetId, value);
 

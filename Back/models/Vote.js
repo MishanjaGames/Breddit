@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const voteSchema = new Schema({
-    user: {
+    author: {
         type: Schema.Types.ObjectId,
         ref: 'User',
         required: true
@@ -26,6 +26,6 @@ const voteSchema = new Schema({
     timestamps: true
 });
 
-voteSchema.index({ user: 1, target: 1 }, { unique: true });
+voteSchema.index({ author: 1, target: 1 }, { unique: true });
 
 module.exports = mongoose.model('Vote', voteSchema);
