@@ -4,6 +4,7 @@ import api from '../api/client';
 import VoteButtons from '../components/VoteButtons';
 import CommentTree from '../components/CommentTree';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 function insertReply(comments, parentId, reply) {
   return comments.map((c) => {
@@ -16,10 +17,12 @@ function insertReply(comments, parentId, reply) {
 export default function PostPage() {
   const { id } = useParams();
   const { user } = useAuth();
+  const { success, error } = useToast();
   const [post, setPost] = useState(null);
   const [comments, setComments] = useState([]);
   const [sort, setSort] = useState('best');
   const [text, setText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     api.get(`/posts/${id}`).then(({ data }) => setPost({ ...data.post, myVote: data.myVote }));
@@ -37,9 +40,17 @@ export default function PostPage() {
   const submitComment = async (e) => {
     e.preventDefault();
     if (!text.trim()) return;
-    const { data } = await api.post(`/posts/${id}/comments`, { content: text, parentId: null });
-    setComments([data.comment, ...comments]);
-    setText('');
+    setSubmitting(true);
+    try {
+      const { data } = await api.post(`/posts/${id}/comments`, { content: text, parentId: null });
+      setComments([data.comment, ...comments]);
+      setText('');
+      success('Коментар успішно додано!');
+    } catch (err) {
+      error('Помилка при додаванні коментаря');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const onReplyAdded = (parentId, reply) => setComments(insertReply(comments, parentId, reply));
@@ -65,9 +76,21 @@ export default function PostPage() {
 
       {user && (
         <form onSubmit={submitComment} className="mb-3">
-          <textarea className="form-control mb-2" rows={3} placeholder="Написати коментар..."
-            value={text} onChange={(e) => setText(e.target.value)} />
-          <button className="btn btn-primary btn-sm" type="submit">Коментувати</button>
+          <textarea 
+            className="form-control mb-2" 
+            rows={3} 
+            placeholder="Написати коментар..."
+            disabled={submitting}
+            value={text} 
+            onChange={(e) => setText(e.target.value)} 
+          />
+          <button 
+            className="btn btn-primary btn-sm" 
+            type="submit"
+            disabled={submitting}
+          >
+            {submitting ? 'Завантаження...' : 'Коментувати'}
+          </button>
         </form>
       )}
 

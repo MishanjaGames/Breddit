@@ -1,0 +1,59 @@
+import { createContext, useContext, useState, useCallback } from 'react';
+
+const ToastContext = createContext(null);
+
+export function ToastProvider({ children }) {
+  const [toasts, setToasts] = useState([]);
+
+  const addToast = useCallback((message, type = 'info', duration = 3000) => {
+    const id = Date.now();
+    const toast = { id, message, type };
+    
+    setToasts((prev) => [...prev, toast]);
+    
+    if (duration > 0) {
+      setTimeout(() => removeToast(id), duration);
+    }
+    
+    return id;
+  }, []);
+
+  const removeToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const success = useCallback((message, duration = 3000) => addToast(message, 'success', duration), [addToast]);
+  const error = useCallback((message, duration = 5000) => addToast(message, 'danger', duration), [addToast]);
+  const info = useCallback((message, duration = 3000) => addToast(message, 'info', duration), [addToast]);
+
+  return (
+    <ToastContext.Provider value={{ addToast, removeToast, success, error, info }}>
+      {children}
+      <div className="position-fixed bottom-0 end-0 p-3" style={{ zIndex: 9999 }}>
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`alert alert-${toast.type} mb-2 alert-dismissible fade show`}
+            role="alert"
+          >
+            {toast.message}
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => removeToast(toast.id)}
+              aria-label="Close"
+            />
+          </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
+}
+
+export const useToast = () => {
+  const context = useContext(ToastContext);
+  if (!context) {
+    throw new Error('useToast must be used within ToastProvider');
+  }
+  return context;
+};
