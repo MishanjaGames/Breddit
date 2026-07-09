@@ -28,8 +28,8 @@ export default function Navbar() {
         <Link className="btn btn-outline-light btn-sm" to="/r/new">Створити спільноту</Link>
         {user ? (
           <>
-            <Link className="btn btn-outline-light btn-sm" to="/notifications">🔔</Link>
-            <Link className="btn btn-outline-light btn-sm" to={`/u/${user.username}`}>{user.username}</Link>
+            {/* backend has no /nickname-based profile endpoint, so just show the nickname */}
+            <span className="text-light small">{user.nickname}</span>
             <button className="btn btn-light btn-sm" onClick={logout}>Вийти</button>
           </>
         ) : (

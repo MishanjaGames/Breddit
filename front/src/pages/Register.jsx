@@ -18,7 +18,7 @@ export default function Register() {
       success('Успішно зареєстровані!');
       navigate('/');
     } catch (err) {
-      error(err.response?.data?.error || 'Помилка реєстрації');
+      error(err.response?.data?.message || err.response?.data?.error || 'Помилка реєстрації');
     } finally {
       setLoading(false);
     }

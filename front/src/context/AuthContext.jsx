@@ -8,29 +8,32 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
+    const token = localStorage.getItem('token');
     if (!token) { setLoading(false); return; }
+    // backend: GET /api/auth/me -> { success, user }
     api.get('/auth/me')
       .then(({ data }) => setUser(data.user))
-      .catch(() => localStorage.removeItem('accessToken'))
+      .catch(() => localStorage.removeItem('token'))
       .finally(() => setLoading(false));
   }, []);
 
-  const login = async (emailOrUsername, password) => {
-    const { data } = await api.post('/auth/login', { emailOrUsername, password });
-    localStorage.setItem('accessToken', data.accessToken);
+  const login = async (email, password) => {
+    // backend: POST /api/auth/login -> { success, token: "Bearer <jwt>", user }
+    const { data } = await api.post('/auth/login', { email, password });
+    localStorage.setItem('token', data.token.replace('Bearer ', ''));
     setUser(data.user);
   };
 
   const register = async (email, username, password) => {
+    // backend: POST /api/auth/register { email, username, password } -> { success, token, user }
     const { data } = await api.post('/auth/register', { email, username, password });
-    localStorage.setItem('accessToken', data.accessToken);
+    localStorage.setItem('token', data.token.replace('Bearer ', ''));
     setUser(data.user);
   };
 
   const logout = async () => {
     try { await api.post('/auth/logout'); } catch { /* ignore */ }
-    localStorage.removeItem('accessToken');
+    localStorage.removeItem('token');
     setUser(null);
   };
 

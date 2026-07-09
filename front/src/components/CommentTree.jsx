@@ -12,8 +12,8 @@ function Comment({ comment, postId, onReplyAdded }) {
   const [submitting, setSubmitting] = useState(false);
 
   const handleVote = async (value) => {
-    const { data } = await api.post(`/comments/${comment.id}/vote`, { value });
-    return data;
+    // backend: POST /api/votes { targetType: 'Comment', targetId, value }
+    await api.post('/votes', { targetType: 'Comment', targetId: comment._id, value });
   };
 
   const submitReply = async (e) => {
@@ -21,8 +21,9 @@ function Comment({ comment, postId, onReplyAdded }) {
     if (!text.trim()) return;
     setSubmitting(true);
     try {
-      const { data } = await api.post(`/posts/${postId}/comments`, { content: text, parentId: comment.id });
-      onReplyAdded(comment.id, data.comment);
+      // backend: POST /api/comments { text, post, parentComment }
+      const { data } = await api.post('/comments', { text, post: postId, parentComment: comment._id });
+      onReplyAdded(comment._id, data);
       setText('');
       setReplying(false);
       success('Відповідь успішно додана!');
@@ -36,13 +37,13 @@ function Comment({ comment, postId, onReplyAdded }) {
   return (
     <div className="border-start ps-3 mb-2">
       <div className="d-flex gap-2">
-        <VoteButtons score={comment.score} myVote={comment.myVote} onVote={handleVote} vertical={false} />
+        <VoteButtons score={comment.karma} onVote={handleVote} vertical={false} />
         <div className="flex-grow-1">
-          <div className="small text-secondary">u/{comment.author?.username}</div>
-          <div>{comment.content}</div>
+          <div className="small text-secondary">u/{comment.author?.nickname}</div>
+          <div>{comment.text}</div>
           {user && (
-            <button 
-              className="btn btn-link btn-sm p-0" 
+            <button
+              className="btn btn-link btn-sm p-0"
               onClick={() => setReplying(!replying)}
             >
               Відповісти
@@ -50,15 +51,15 @@ function Comment({ comment, postId, onReplyAdded }) {
           )}
           {replying && (
             <form onSubmit={submitReply} className="mt-1">
-              <textarea 
-                className="form-control form-control-sm" 
-                rows={2} 
+              <textarea
+                className="form-control form-control-sm"
+                rows={2}
                 disabled={submitting}
                 value={text}
-                onChange={(e) => setText(e.target.value)} 
+                onChange={(e) => setText(e.target.value)}
               />
-              <button 
-                className="btn btn-sm btn-primary mt-1" 
+              <button
+                className="btn btn-sm btn-primary mt-1"
                 type="submit"
                 disabled={submitting}
               >
@@ -67,7 +68,7 @@ function Comment({ comment, postId, onReplyAdded }) {
             </form>
           )}
           {comment.replies?.map((r) => (
-            <Comment key={r.id} comment={r} postId={postId} onReplyAdded={onReplyAdded} />
+            <Comment key={r._id} comment={r} postId={postId} onReplyAdded={onReplyAdded} />
           ))}
         </div>
       </div>
@@ -79,7 +80,7 @@ export default function CommentTree({ comments, postId, onReplyAdded }) {
   return (
     <div>
       {comments.map((c) => (
-        <Comment key={c.id} comment={c} postId={postId} onReplyAdded={onReplyAdded} />
+        <Comment key={c._id} comment={c} postId={postId} onReplyAdded={onReplyAdded} />
       ))}
     </div>
   );

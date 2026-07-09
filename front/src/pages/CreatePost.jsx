@@ -4,7 +4,7 @@ import api from '../api/client';
 import { useToast } from '../context/ToastContext';
 
 export default function CreatePost() {
-  const { name } = useParams();
+  const { id } = useParams();
   const [type, setType] = useState('TEXT');
   const [form, setForm] = useState({ title: '', content: '', url: '', mediaUrl: '' });
   const { success, error } = useToast();
@@ -15,16 +15,24 @@ export default function CreatePost() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data: sub } = await api.get(`/subreddits/${name}`);
-      const body = { title: form.title, type };
-      if (type === 'TEXT') body.content = form.content;
-      if (type === 'LINK') body.url = form.url;
-      if (type === 'MEDIA') body.mediaUrl = form.mediaUrl;
-      const { data } = await api.post(`/subreddits/${sub.subreddit.id}/posts`, body);
+      await api.get(`/categories/${id}`);
+
+      const description = type === 'LINK'
+        ? form.url
+        : type === 'MEDIA'
+          ? form.mediaUrl
+          : form.content;
+
+      const { data } = await api.post('/posts', {
+        title: form.title,
+        description,
+        category: id,
+      });
+
       success('Пост успішно опублікований!');
-      navigate(`/post/${data.post.id}`);
+      navigate(`/post/${data._id}`);
     } catch (err) {
-      error(err.response?.data?.error || 'Помилка створення поста');
+      error(err.response?.data?.message || err.response?.data?.error || 'Помилка створення поста');
     } finally {
       setLoading(false);
     }
@@ -32,7 +40,7 @@ export default function CreatePost() {
 
   return (
     <div className="col-md-6 mx-auto mt-4">
-      <h4 className="mb-3">Новий пост у r/{name}</h4>
+      <h4 className="mb-3">Новий пост у r/{id}</h4>
       <form onSubmit={submit}>
         <input 
           className="form-control mb-2" 

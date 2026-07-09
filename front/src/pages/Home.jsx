@@ -19,8 +19,11 @@ export default function Home() {
 
   useEffect(() => {
     setLoading(true);
-    api.get(`/feed/${tab}`, { params: { sort } })
-      .then(({ data }) => { setPosts(data.posts); setMessage(data.message || ''); })
+    api.get('/posts', { params: { page: 1, limit: 20 } })
+      .then(({ data }) => {
+        setPosts(data.posts || []);
+        setMessage(data.message || '');
+      })
       .finally(() => setLoading(false));
   }, [tab, sort]);
 
@@ -42,7 +45,7 @@ export default function Home() {
       </div>
       {loading && <p className="text-secondary">Завантаження...</p>}
       {!loading && message && <div className="alert alert-info">{message}</div>}
-      {posts.map((p) => <PostCard key={p.id} post={p} />)}
+      {posts.map((p) => <PostCard key={p._id} post={p} />)}
       {!loading && !message && posts.length === 0 && <p className="text-secondary">Постів немає.</p>}
     </div>
   );

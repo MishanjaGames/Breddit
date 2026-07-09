@@ -8,8 +8,6 @@ import CreateSubreddit from './pages/CreateSubreddit';
 import CreatePost from './pages/CreatePost';
 import PostPage from './pages/PostPage';
 import Search from './pages/Search';
-import Profile from './pages/Profile';
-import Notifications from './pages/Notifications';
 
 export default function App() {
   return (
@@ -20,12 +18,10 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/r/new" element={<CreateSubreddit />} />
-        <Route path="/r/:name" element={<Subreddit />} />
-        <Route path="/r/:name/submit" element={<CreatePost />} />
+        <Route path="/r/:id" element={<Subreddit />} />
+        <Route path="/r/:id/submit" element={<CreatePost />} />
         <Route path="/post/:id" element={<PostPage />} />
         <Route path="/search" element={<Search />} />
-        <Route path="/u/:username" element={<Profile />} />
-        <Route path="/notifications" element={<Notifications />} />
       </Routes>
     </>
   );

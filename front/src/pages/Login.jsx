@@ -6,7 +6,7 @@ import { useToast } from '../context/ToastContext';
 export default function Login() {
   const { login } = useAuth();
   const { success, error } = useToast();
-  const [form, setForm] = useState({ emailOrUsername: '', password: '' });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -14,11 +14,11 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      await login(form.emailOrUsername, form.password);
+      await login(form.email, form.password);
       success('Успішно увійшли!');
       navigate('/');
     } catch (err) {
-      error(err.response?.data?.error || 'Помилка входу');
+      error(err.response?.data?.message || err.response?.data?.error || 'Помилка входу');
     } finally {
       setLoading(false);
     }
@@ -33,8 +33,8 @@ export default function Login() {
           placeholder="Email або username" 
           required
           disabled={loading}
-          value={form.emailOrUsername}
-          onChange={(e) => setForm({ ...form, emailOrUsername: e.target.value })} 
+          value={form.email}
+          onChange={(e) => setForm({ ...form, email: e.target.value })} 
         />
         <input 
           className="form-control mb-3" 

@@ -4,7 +4,8 @@ import api from '../api/client';
 import { useToast } from '../context/ToastContext';
 
 export default function CreateSubreddit() {
-  const [form, setForm] = useState({ name: '', title: '', description: '', isPrivate: false });
+  // backend Category model only has { name, description }
+  const [form, setForm] = useState({ name: '', description: '' });
   const { success, error } = useToast();
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -13,11 +14,12 @@ export default function CreateSubreddit() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data } = await api.post('/subreddits', form);
+      // backend: POST /api/categories { name, description } -> category object directly
+      const { data } = await api.post('/categories', form);
       success('Спільнота успішно створена!');
-      navigate(`/r/${data.subreddit.name}`);
+      navigate(`/r/${data._id}`);
     } catch (err) {
-      error(err.response?.data?.error || 'Помилка створення');
+      error(err.response?.data?.message || 'Помилка створення');
     } finally {
       setLoading(false);
     }
@@ -27,43 +29,24 @@ export default function CreateSubreddit() {
     <div className="col-md-6 mx-auto mt-4">
       <h4 className="mb-3">Нова спільнота</h4>
       <form onSubmit={submit}>
-        <input 
-          className="form-control mb-2" 
-          placeholder="Назва (name)" 
+        <input
+          className="form-control mb-2"
+          placeholder="Назва (name)"
           required
           disabled={loading}
-          value={form.name} 
-          onChange={(e) => setForm({ ...form, name: e.target.value })} 
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
         />
-        <input 
-          className="form-control mb-2" 
-          placeholder="Заголовок (title)" 
-          required
-          disabled={loading}
-          value={form.title} 
-          onChange={(e) => setForm({ ...form, title: e.target.value })} 
-        />
-        <textarea 
-          className="form-control mb-2" 
-          placeholder="Опис" 
+        <textarea
+          className="form-control mb-3"
+          placeholder="Опис"
           rows={3}
           disabled={loading}
-          value={form.description} 
-          onChange={(e) => setForm({ ...form, description: e.target.value })} 
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
         />
-        <div className="form-check mb-3">
-          <input 
-            className="form-check-input" 
-            type="checkbox" 
-            id="isPrivate"
-            disabled={loading}
-            checked={form.isPrivate} 
-            onChange={(e) => setForm({ ...form, isPrivate: e.target.checked })} 
-          />
-          <label className="form-check-label" htmlFor="isPrivate">Приватна спільнота</label>
-        </div>
-        <button 
-          className="btn btn-primary w-100" 
+        <button
+          className="btn btn-primary w-100"
           type="submit"
           disabled={loading}
         >
