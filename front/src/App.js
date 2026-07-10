@@ -8,6 +8,9 @@ import CreateSubreddit from './pages/CreateSubreddit';
 import CreatePost from './pages/CreatePost';
 import PostPage from './pages/PostPage';
 import Search from './pages/Search';
+import Notifications from './pages/Notifications';
+import Profile from './pages/Profile';
+import NotFound from './pages/NotFound';
 
 export default function App() {
   return (
@@ -22,6 +25,9 @@ export default function App() {
         <Route path="/r/:id/submit" element={<CreatePost />} />
         <Route path="/post/:id" element={<PostPage />} />
         <Route path="/search" element={<Search />} />
+        <Route path="/notifications" element={<Notifications />} />
+        <Route path="/u/:username" element={<Profile />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </>
   );

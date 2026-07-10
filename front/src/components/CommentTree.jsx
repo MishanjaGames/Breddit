@@ -37,7 +37,7 @@ function Comment({ comment, postId, onReplyAdded }) {
   return (
     <div className="border-start ps-3 mb-2">
       <div className="d-flex gap-2">
-        <VoteButtons score={comment.karma} onVote={handleVote} vertical={false} />
+        <VoteButtons score={comment.karma} myVote={comment.myVote} onVote={handleVote} vertical={false} />
         <div className="flex-grow-1">
           <div className="small text-secondary">u/{comment.author?.nickname}</div>
           <div>{comment.text}</div>

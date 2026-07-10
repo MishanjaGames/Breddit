@@ -19,7 +19,7 @@ export default function Home() {
 
   useEffect(() => {
     setLoading(true);
-    api.get('/posts', { params: { page: 1, limit: 20 } })
+    api.get('/posts', { params: { page: 1, limit: 20, feed: tab, sort } })
       .then(({ data }) => {
         setPosts(data.posts || []);
         setMessage(data.message || '');

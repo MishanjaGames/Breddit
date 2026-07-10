@@ -29,7 +29,8 @@ export default function Navbar() {
         {user ? (
           <>
             {/* backend has no /nickname-based profile endpoint, so just show the nickname */}
-            <span className="text-light small">{user.nickname}</span>
+            <Link className="btn btn-outline-light btn-sm" to="/notifications">🔔</Link>
+            <Link className="text-light small text-decoration-none" to={`/u/${user.nickname}`}>{user.nickname}</Link>
             <button className="btn btn-light btn-sm" onClick={logout}>Вийти</button>
           </>
         ) : (

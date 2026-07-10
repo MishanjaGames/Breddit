@@ -78,7 +78,7 @@ export default function PostPage() {
     <div className="col-md-8 mx-auto mt-3">
       <div className="card mb-3">
         <div className="card-body d-flex gap-3">
-          <VoteButtons score={post.karma} onVote={handleVote} />
+          <VoteButtons score={post.karma} myVote={post.myVote} onVote={handleVote} />
           <div className="flex-grow-1">
             <div className="small text-secondary">
               <Link to={`/r/${post.category?._id}`}>r/{post.category?.name}</Link> · u/{post.author?.nickname}

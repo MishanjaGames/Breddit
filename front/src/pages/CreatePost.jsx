@@ -15,8 +15,6 @@ export default function CreatePost() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.get(`/categories/${id}`);
-
       const description = type === 'LINK'
         ? form.url
         : type === 'MEDIA'
