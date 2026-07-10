@@ -1,30 +1,50 @@
 import { Link } from 'react-router-dom';
 import VoteButtons from './VoteButtons';
 import api from '../api/client';
+import timeAgo from '../utils/timeAgo';
 
 export default function PostCard({ post }) {
   const handleVote = async (value) => {
-    // backend: POST /api/votes { targetType: 'Post', targetId, value }
     await api.post('/votes', { targetType: 'Post', targetId: post._id, value });
   };
 
+  const subName = post.category?.name;
+
   return (
-    <div className="card mb-2 shadow-sm">
-      <div className="card-body d-flex gap-3 py-2">
+    <div className="card mb-2">
+      <div className="card-body d-flex gap-2 py-2 px-2">
         <VoteButtons score={post.karma} myVote={post.myVote} onVote={handleVote} />
-        <div className="flex-grow-1">
-          <div className="small text-secondary">
-            {post.category && (
-              <Link to={`/r/${encodeURIComponent(post.category.name)}`} className="fw-semibold text-decoration-none">
-                r/{post.category.name}
-              </Link>
+        <div className="flex-grow-1 min-w-0">
+          <div className="post-meta mb-1">
+            {subName && (
+              <>
+                <span className="sub-icon me-1">{subName[0]?.toUpperCase()}</span>
+                <Link to={`/r/${encodeURIComponent(subName)}`}>r/{subName}</Link>
+              </>
             )}
-            {' · '}u/{post.author?.nickname}
+            <span className="mx-1">·</span>
+            Опубліковано u/{post.author?.nickname} {timeAgo(post.createdAt)}
           </div>
-          <Link to={`/r/${encodeURIComponent(post.category?.name)}/p/${encodeURIComponent(post.title)}`} className="h6 text-decoration-none text-body d-block mt-1">
+          <Link
+            to={`/r/${encodeURIComponent(subName)}/p/${encodeURIComponent(post.title)}`}
+            className="post-title text-decoration-none d-block"
+          >
             {post.title}
           </Link>
-          <p className="small text-secondary mb-0">{post.description}</p>
+          {post.description && (
+            <p className="small text-secondary mb-1 mt-1" style={{
+              display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+            }}>
+              {post.description}
+            </p>
+          )}
+          <div className="d-flex gap-1 mt-1">
+            <Link to={`/r/${encodeURIComponent(subName)}/p/${encodeURIComponent(post.title)}`} className="post-action-btn text-decoration-none">
+              💬 {post.commentCount ?? 0} коментарів
+            </Link>
+            <button className="post-action-btn">↗ Поділитись</button>
+            <button className="post-action-btn">🔖 Зберегти</button>
+          </div>
         </div>
       </div>
     </div>

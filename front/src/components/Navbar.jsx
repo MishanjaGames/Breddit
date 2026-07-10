@@ -13,30 +13,32 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="navbar navbar-expand navbar-dark bg-dark px-3">
-      <Link className="navbar-brand fw-bold" to="/">Breddit</Link>
-      <form className="d-flex flex-grow-1 mx-3" onSubmit={submitSearch}>
+    <nav className="navbar navbar-expand px-3 sticky-top">
+      <Link className="navbar-brand" to="/">
+        <span className="sub-icon me-1" style={{ verticalAlign: 'middle' }}>b</span>
+        breddit
+      </Link>
+      <form className="d-flex flex-grow-1 mx-3" style={{ maxWidth: 600 }} onSubmit={submitSearch}>
         <input
           className="form-control"
           type="search"
-          placeholder="Пошук..."
+          placeholder="Пошук у Breddit"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
       </form>
       <div className="d-flex align-items-center gap-2">
-        <Link className="btn btn-outline-light btn-sm" to="/r/new">Створити спільноту</Link>
+        <Link className="btn btn-primary btn-sm" to="/r/new">+ Створити</Link>
         {user ? (
           <>
-            {/* backend has no /nickname-based profile endpoint, so just show the nickname */}
             <Link className="btn btn-outline-light btn-sm" to="/notifications">🔔</Link>
-            <Link className="text-light small text-decoration-none" to={`/u/${user.nickname}`}>{user.nickname}</Link>
-            <button className="btn btn-light btn-sm" onClick={logout}>Вийти</button>
+            <Link className="text-decoration-none fw-semibold small" to={`/u/${user.nickname}`}>u/{user.nickname}</Link>
+            <button className="btn btn-outline-light btn-sm" onClick={logout}>Вийти</button>
           </>
         ) : (
           <>
             <Link className="btn btn-outline-light btn-sm" to="/login">Увійти</Link>
-            <Link className="btn btn-light btn-sm" to="/register">Реєстрація</Link>
+            <Link className="btn btn-primary btn-sm" to="/register">Реєстрація</Link>
           </>
         )}
       </div>

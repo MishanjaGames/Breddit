@@ -24,15 +24,15 @@ export default function VoteButtons({ score: initialScore, myVote: initialVote, 
   };
 
   return (
-    <div className={`d-flex ${vertical ? 'flex-column' : ''} align-items-center gap-1`}>
+    <div className={`vote-pill d-flex ${vertical ? 'flex-column' : ''} align-items-center`}>
       <button
-        className={`btn btn-sm p-1 border-0 ${myVote === 1 ? 'text-danger' : 'text-secondary'}`}
+        className={`vote-btn up ${myVote === 1 ? 'active' : ''}`}
         onClick={() => vote(1)}
         aria-label="Upvote"
       >▲</button>
-      <span className="fw-semibold small">{score}</span>
+      <span className="fw-bold small px-1" style={{ color: myVote === 1 ? '#ff4500' : myVote === -1 ? '#7193ff' : '#1a1a1b' }}>{score}</span>
       <button
-        className={`btn btn-sm p-1 border-0 ${myVote === -1 ? 'text-primary' : 'text-secondary'}`}
+        className={`vote-btn down ${myVote === -1 ? 'active' : ''}`}
         onClick={() => vote(-1)}
         aria-label="Downvote"
       >▼</button>
