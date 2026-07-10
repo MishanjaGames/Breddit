@@ -57,7 +57,7 @@ module.exports.register = async (req, res) => {
         const newUser = new User({
             email: req.body.email.toLowerCase(),
             password: req.body.password,
-            nickname: req.body.nickname.trim()
+            nickname: (req.body.nickname || req.body.username).trim()
         })
 
         await newUser.save()

@@ -51,10 +51,13 @@ exports.getAllPosts = async (req, res) => {
 // READ - получить посты одной категории
 exports.getPostsByCategory = async (req, res) => {
     try {
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+
         const posts = await Post.find({ category: req.params.categoryId })
             .populate('author', 'nickname avatar')
             .populate('category', 'name')
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .limit(limit);
 
         res.status(200).json(posts);
     } catch (error) {

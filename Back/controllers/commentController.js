@@ -1,5 +1,6 @@
 const Comment = require('../models/Comment');
 const Post = require('../models/Post');
+const Notification = require('../models/Notification');
 
 // CREATE - создать комментарий (или ответ на комментарий)
 exports.createComment = async (req, res) => {
@@ -28,6 +29,18 @@ exports.createComment = async (req, res) => {
 
         await comment.save();
 
+        // уведомляем автора родительского комментария или поста (если это не сам автор)
+        const notifyRecipient = parentComment
+            ? (await Comment.findById(parentComment)).author
+            : postExists.author;
+
+        if (notifyRecipient.toString() !== author) {
+            await Notification.create({
+                recipient: notifyRecipient,
+                message: parentComment ? 'Хтось відповів на ваш коментар' : 'Хтось прокоментував ваш пост'
+            });
+        }
+
         res.status(201).json(comment);
     } catch (error) {
         res.status(500).json({ message: 'Ошибка сервера', error: error.message });
@@ -37,12 +50,15 @@ exports.createComment = async (req, res) => {
 // READ - получить все комментарии к посту
 exports.getCommentsByPost = async (req, res) => {
     try {
+        const limit = Math.min(parseInt(req.query.limit) || 200, 500);
+
         const comments = await Comment.find({
             post: req.params.postId,
             isDeleted: false
         })
             .populate('author', 'nickname avatar')
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .limit(limit);
 
         res.status(200).json(comments);
     } catch (error) {

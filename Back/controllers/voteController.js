@@ -1,6 +1,7 @@
 const Vote = require('../models/Vote');
 const Post = require('../models/Post');
 const Comment = require('../models/Comment');
+const Notification = require('../models/Notification');
 
 const updateKarma = async (targetType, targetId, delta) => {
     if (targetType === 'Post') {
@@ -44,6 +45,13 @@ exports.vote = async (req, res) => {
         const vote = new Vote({ author: userId, targetType, target: targetId, value });
         await vote.save();
         await updateKarma(targetType, targetId, value);
+
+        if (value === 1 && target.author.toString() !== userId) {
+            await Notification.create({
+                recipient: target.author,
+                message: targetType === 'Post' ? 'Ваш пост отримав апвоут' : 'Ваш коментар отримав апвоут'
+            });
+        }
 
         res.status(201).json({ success: true, message: 'Vote created' });
     } catch (error) {

@@ -5,16 +5,15 @@ exports.createCategory = async (req, res) => {
     try {
         const { name, description } = req.body;
 
-        const existing = await Category.findOne({ name });
-        if (existing) {
-            return res.status(400).json({ message: 'Категория с таким именем уже существует' });
-        }
-
-        const category = new Category({ name, description });
-        await category.save();
+        // rely on the schema's unique index (atomic) instead of findOne+save,
+        // which has a race condition between two concurrent requests
+        const category = await Category.create({ name, description });
 
         res.status(201).json(category);
     } catch (error) {
+        if (error.code === 11000) {
+            return res.status(400).json({ message: 'Категория с таким именем уже существует' });
+        }
         res.status(500).json({ message: 'Ошибка сервера', error: error.message });
     }
 };

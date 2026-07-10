@@ -1,7 +1,8 @@
 const validateEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
 exports.validateAuth = (req, res, next) => {
-    const { email, password, nickname } = req.body;
+    const { email, password } = req.body;
+    const nickname = req.body.nickname || req.body.username;
     const errors = [];
 
     if (!email || !validateEmail(email)) {

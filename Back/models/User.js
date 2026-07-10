@@ -28,6 +28,11 @@ const userSchema = new Schema({
     karma: {
         type: Number,
         default: 0
+    },
+    bio: {
+        type: String,
+        default: '',
+        maxlength: 300
     }
 }, {
     timestamps: true
