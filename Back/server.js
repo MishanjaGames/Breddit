@@ -32,7 +32,7 @@ app.use('/api/comments', require('./routes/comments'))
 app.use('/api/search', require('./routes/search'))
 app.use('/api/votes', require('./routes/votes'))
 app.use('/api/users', require('./routes/users'))
-app.use('/api/notifications', require('./routes/notifications'))
+app.use('/api/notifications', require('./routes/notification'))
 
 app.get('/', function (req, res) {
     res.send('Breddit backend is running')

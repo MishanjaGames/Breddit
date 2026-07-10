@@ -1,6 +1,19 @@
 const Comment = require('../models/Comment');
 const Post = require('../models/Post');
 const Notification = require('../models/Notification');
+const Vote = require('../models/Vote');
+
+// enrich flat comment list with myVote for the current user
+const enrichComments = async (comments, userId) => {
+    if (!userId || comments.length === 0) return comments.map((c) => (c.toObject ? c.toObject() : c));
+    const ids = comments.map((c) => c._id);
+    const votes = await Vote.find({ author: userId, target: { $in: ids }, targetType: 'Comment' }).lean();
+    const voteMap = new Map(votes.map((v) => [v.target.toString(), v.value]));
+    return comments.map((c) => {
+        const obj = c.toObject ? c.toObject() : c;
+        return { ...obj, myVote: voteMap.get(c._id.toString()) || null };
+    });
+};
 
 // CREATE - создать комментарий (или ответ на комментарий)
 exports.createComment = async (req, res) => {
@@ -28,8 +41,8 @@ exports.createComment = async (req, res) => {
         });
 
         await comment.save();
+        await comment.populate('author', 'nickname avatar');
 
-        // уведомляем автора родительского комментария или поста (если это не сам автор)
         const notifyRecipient = parentComment
             ? (await Comment.findById(parentComment)).author
             : postExists.author;
@@ -60,7 +73,8 @@ exports.getCommentsByPost = async (req, res) => {
             .sort({ createdAt: -1 })
             .limit(limit);
 
-        res.status(200).json(comments);
+        const enriched = await enrichComments(comments, req.user?.id);
+        res.status(200).json(enriched);
     } catch (error) {
         res.status(500).json({ message: 'Ошибка сервера', error: error.message });
     }
@@ -76,7 +90,8 @@ exports.getCommentById = async (req, res) => {
             return res.status(404).json({ message: 'Комментарий не найден' });
         }
 
-        res.status(200).json(comment);
+        const [enriched] = await enrichComments([comment], req.user?.id);
+        res.status(200).json(enriched);
     } catch (error) {
         res.status(500).json({ message: 'Ошибка сервера', error: error.message });
     }
@@ -117,7 +132,6 @@ exports.deleteComment = async (req, res) => {
             return res.status(403).json({ message: 'Нет прав на удаление этого комментария' });
         }
 
-        // мягкое удаление — текст скрываем, но структура дерева не ломается
         comment.isDeleted = true;
         comment.text = '[удалено]';
         await comment.save();
