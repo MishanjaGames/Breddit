@@ -92,41 +92,70 @@ export default function PostPage() {
   if (!post) return <p className="mt-4 text-center text-secondary">Завантаження...</p>;
 
   return (
-    <div className="col-md-8 mx-auto mt-3">
-      <div className="card mb-3">
-        <div className="card-body d-flex gap-3">
-          <VoteButtons score={post.karma} myVote={post.myVote} onVote={handleVote} />
-          <div className="flex-grow-1">
-            <div className="small text-secondary">
-              <Link to={`/r/${encodeURIComponent(post.category?.name)}`}>r/{post.category?.name}</Link> · u/{post.author?.nickname}
+    <div className="container-fluid mt-3">
+      <div className="row" style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <div className="col-md-8 mx-auto mx-md-0">
+          <div className="card mb-3">
+            <div className="card-body d-flex gap-3">
+              <VoteButtons score={post.karma} myVote={post.myVote} onVote={handleVote} />
+              <div className="flex-grow-1">
+                <div className="post-meta mb-1">
+                  <span className="sub-icon me-1">{post.category?.name?.[0]?.toUpperCase()}</span>
+                  <Link to={`/r/${encodeURIComponent(post.category?.name)}`}>r/{post.category?.name}</Link>
+                  <span className="mx-1">·</span>Опубліковано u/{post.author?.nickname}
+                </div>
+                <h5 className="mb-0">{post.title}</h5>
+                <p className="mt-2 mb-1">{post.description}</p>
+                <div className="d-flex gap-1 mt-2">
+                  <span className="post-action-btn">💬 {comments.length} коментарів</span>
+                  <button className="post-action-btn">↗ Поділитись</button>
+                  <button className="post-action-btn">🔖 Зберегти</button>
+                </div>
+              </div>
             </div>
-            <h5 className="mb-0">{post.title}</h5>
-            <p className="mt-2">{post.description}</p>
+          </div>
+
+          {user && (
+            <div className="card mb-3">
+              <div className="card-body">
+                <form onSubmit={submitComment}>
+                  <textarea
+                    className="form-control mb-2"
+                    rows={3}
+                    placeholder="Написати коментар..."
+                    disabled={submitting}
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                  />
+                  <button
+                    className="btn btn-primary btn-sm btn-round"
+                    type="submit"
+                    disabled={submitting}
+                  >
+                    {submitting ? 'Завантаження...' : 'Коментувати'}
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+
+          <div className="card">
+            <div className="card-body">
+              <CommentTree comments={comments} postId={post._id} onReplyAdded={onReplyAdded} />
+            </div>
+          </div>
+        </div>
+        <div className="col-md-4 d-none d-md-block">
+          <div className="widget-card">
+            <div className="widget-card-header">r/{post.category?.name}</div>
+            <div className="widget-card-body">
+              <p className="text-secondary mb-0" style={{ fontSize: 12 }}>
+                Пост від u/{post.author?.nickname}. Приєднуйся до r/{post.category?.name}, щоб не пропустити нове.
+              </p>
+            </div>
           </div>
         </div>
       </div>
-
-      {user && (
-        <form onSubmit={submitComment} className="mb-3">
-          <textarea
-            className="form-control mb-2"
-            rows={3}
-            placeholder="Написати коментар..."
-            disabled={submitting}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-          />
-          <button
-            className="btn btn-primary btn-sm"
-            type="submit"
-            disabled={submitting}
-          >
-            {submitting ? 'Завантаження...' : 'Коментувати'}
-          </button>
-        </form>
-      )}
-
-      <CommentTree comments={comments} postId={post._id} onReplyAdded={onReplyAdded} />
     </div>
   );
 }
