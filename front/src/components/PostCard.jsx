@@ -1,11 +1,32 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import VoteButtons from './VoteButtons';
 import api from '../api/client';
 import timeAgo from '../utils/timeAgo';
+import { useAuth } from '../context/AuthContext';
 
 export default function PostCard({ post }) {
+  const { user } = useAuth();
+  const [saved, setSaved] = useState(!!post.isSaved);
+  const [saving, setSaving] = useState(false);
+
   const handleVote = async (value) => {
     await api.post('/votes', { targetType: 'Post', targetId: post._id, value });
+  };
+
+  const toggleSave = async () => {
+    if (!user || saving) return;
+    setSaving(true);
+    const next = !saved;
+    setSaved(next);
+    try {
+      if (next) await api.post(`/posts/${post._id}/save`);
+      else await api.delete(`/posts/${post._id}/save`);
+    } catch {
+      setSaved(!next);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const subName = post.category?.name;
@@ -43,7 +64,11 @@ export default function PostCard({ post }) {
               💬 {post.commentCount ?? 0} коментарів
             </Link>
             <button className="post-action-btn">↗ Поділитись</button>
-            <button className="post-action-btn">🔖 Зберегти</button>
+            {user && (
+              <button className="post-action-btn" onClick={toggleSave} disabled={saving}>
+                {saved ? '🔖 Збережено' : '🔖 Зберегти'}
+              </button>
+            )}
           </div>
         </div>
       </div>

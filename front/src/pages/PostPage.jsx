@@ -40,6 +40,8 @@ export default function PostPage() {
   const [comments, setComments] = useState([]);
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,7 +56,10 @@ export default function PostPage() {
       if (!found) { if (!cancelled) setNotFound(true); return; }
       // backend: GET /api/posts/:id -> full post object directly
       const { data: full } = await api.get(`/posts/${found._id}`);
-      if (!cancelled) setPost({ ...full, category: full.category || category });
+      if (!cancelled) {
+        setPost({ ...full, category: full.category || category });
+        setSaved(!!full.isSaved);
+      }
     })();
     return () => { cancelled = true; };
   }, [name, postName]);
@@ -88,6 +93,21 @@ export default function PostPage() {
 
   const onReplyAdded = (parentId, reply) => setComments(insertReply(comments, parentId, reply));
 
+  const toggleSave = async () => {
+    if (!user || saving) return;
+    setSaving(true);
+    const next = !saved;
+    setSaved(next);
+    try {
+      if (next) await api.post(`/posts/${post._id}/save`);
+      else await api.delete(`/posts/${post._id}/save`);
+    } catch {
+      setSaved(!next);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (notFound) return <p className="mt-4 text-center text-secondary">Пост не знайдено.</p>;
   if (!post) return <p className="mt-4 text-center text-secondary">Завантаження...</p>;
 
@@ -109,7 +129,11 @@ export default function PostPage() {
                 <div className="d-flex gap-1 mt-2">
                   <span className="post-action-btn">💬 {comments.length} коментарів</span>
                   <button className="post-action-btn">↗ Поділитись</button>
-                  <button className="post-action-btn">🔖 Зберегти</button>
+                  {user && (
+                    <button className="post-action-btn" onClick={toggleSave} disabled={saving}>
+                      {saved ? '🔖 Збережено' : '🔖 Зберегти'}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

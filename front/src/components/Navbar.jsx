@@ -32,6 +32,7 @@ export default function Navbar() {
         {user ? (
           <>
             <Link className="btn btn-outline-light btn-sm" to="/notifications">🔔</Link>
+            <Link className="btn btn-outline-light btn-sm" to="/saved">🔖</Link>
             <Link className="text-decoration-none fw-semibold small" to={`/u/${user.nickname}`}>u/{user.nickname}</Link>
             <button className="btn btn-outline-light btn-sm" onClick={logout}>Вийти</button>
           </>
