@@ -24,7 +24,7 @@ export default function Search() {
         <div className="mb-3">
           <h6>Спільноти</h6>
           {results.categories.map((s) => (
-            <Link key={s._id} to={`/r/${s._id}`} className="d-block">r/{s.name}</Link>
+            <Link key={s._id} to={`/r/${encodeURIComponent(s.name)}`} className="d-block">r/{s.name}</Link>
           ))}
         </div>
       )}

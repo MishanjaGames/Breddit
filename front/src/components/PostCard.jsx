@@ -15,13 +15,13 @@ export default function PostCard({ post }) {
         <div className="flex-grow-1">
           <div className="small text-secondary">
             {post.category && (
-              <Link to={`/r/${post.category._id}`} className="fw-semibold text-decoration-none">
+              <Link to={`/r/${encodeURIComponent(post.category.name)}`} className="fw-semibold text-decoration-none">
                 r/{post.category.name}
               </Link>
             )}
             {' · '}u/{post.author?.nickname}
           </div>
-          <Link to={`/post/${post._id}`} className="h6 text-decoration-none text-body d-block mt-1">
+          <Link to={`/r/${encodeURIComponent(post.category?.name)}/p/${encodeURIComponent(post.title)}`} className="h6 text-decoration-none text-body d-block mt-1">
             {post.title}
           </Link>
           <p className="small text-secondary mb-0">{post.description}</p>

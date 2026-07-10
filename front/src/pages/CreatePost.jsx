@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../api/client';
+import { resolveCategoryByName } from '../api/resolve';
 import { useToast } from '../context/ToastContext';
 
 export default function CreatePost() {
-  const { id } = useParams();
+  const { name } = useParams();
   const [type, setType] = useState('TEXT');
   const [form, setForm] = useState({ title: '', content: '', url: '', mediaUrl: '' });
   const { success, error } = useToast();
@@ -15,6 +16,9 @@ export default function CreatePost() {
     e.preventDefault();
     setLoading(true);
     try {
+      const category = await resolveCategoryByName(name);
+      if (!category) throw new Error('Спільноту не знайдено');
+
       const description = type === 'LINK'
         ? form.url
         : type === 'MEDIA'
@@ -24,13 +28,13 @@ export default function CreatePost() {
       const { data } = await api.post('/posts', {
         title: form.title,
         description,
-        category: id,
+        category: category._id,
       });
 
       success('Пост успішно опублікований!');
-      navigate(`/post/${data._id}`);
+      navigate(`/r/${encodeURIComponent(name)}/p/${encodeURIComponent(data.title)}`);
     } catch (err) {
-      error(err.response?.data?.message || err.response?.data?.error || 'Помилка створення поста');
+      error(err.response?.data?.message || err.response?.data?.error || err.message || 'Помилка створення поста');
     } finally {
       setLoading(false);
     }
@@ -38,7 +42,7 @@ export default function CreatePost() {
 
   return (
     <div className="col-md-6 mx-auto mt-4">
-      <h4 className="mb-3">Новий пост у r/{id}</h4>
+      <h4 className="mb-3">Новий пост у r/{name}</h4>
       <form onSubmit={submit}>
         <input 
           className="form-control mb-2" 

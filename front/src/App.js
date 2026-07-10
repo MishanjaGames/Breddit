@@ -21,9 +21,9 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/r/new" element={<CreateSubreddit />} />
-        <Route path="/r/:id" element={<Subreddit />} />
-        <Route path="/r/:id/submit" element={<CreatePost />} />
-        <Route path="/post/:id" element={<PostPage />} />
+        <Route path="/r/:name" element={<Subreddit />} />
+        <Route path="/r/:name/submit" element={<CreatePost />} />
+        <Route path="/r/:name/p/:postName" element={<PostPage />} />
         <Route path="/search" element={<Search />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/u/:username" element={<Profile />} />

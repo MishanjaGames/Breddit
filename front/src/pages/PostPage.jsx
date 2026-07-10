@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/client';
+import { resolveCategoryByName } from '../api/resolve';
 import VoteButtons from '../components/VoteButtons';
 import CommentTree from '../components/CommentTree';
 import { useAuth } from '../context/AuthContext';
@@ -31,26 +32,41 @@ function insertReply(comments, parentId, reply) {
 }
 
 export default function PostPage() {
-  const { id } = useParams();
+  const { name, postName } = useParams();
   const { user } = useAuth();
   const { success, error } = useToast();
   const [post, setPost] = useState(null);
+  const [notFound, setNotFound] = useState(false);
   const [comments, setComments] = useState([]);
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    // backend: GET /api/posts/:id -> post object directly
-    api.get(`/posts/${id}`).then(({ data }) => setPost(data));
-  }, [id]);
+    let cancelled = false;
+    setPost(null);
+    setNotFound(false);
+    (async () => {
+      // backend has no get-post-by-title endpoint, so resolve category -> post list -> match title
+      const category = await resolveCategoryByName(name);
+      if (!category) { if (!cancelled) setNotFound(true); return; }
+      const { data: posts } = await api.get(`/posts/category/${category._id}`);
+      const found = posts.find((p) => p.title === postName);
+      if (!found) { if (!cancelled) setNotFound(true); return; }
+      // backend: GET /api/posts/:id -> full post object directly
+      const { data: full } = await api.get(`/posts/${found._id}`);
+      if (!cancelled) setPost({ ...full, category: full.category || category });
+    })();
+    return () => { cancelled = true; };
+  }, [name, postName]);
 
   useEffect(() => {
+    if (!post) return;
     // backend: GET /api/comments/post/:postId -> flat array
-    api.get(`/comments/post/${id}`).then(({ data }) => setComments(buildTree(data)));
-  }, [id]);
+    api.get(`/comments/post/${post._id}`).then(({ data }) => setComments(buildTree(data)));
+  }, [post]);
 
   const handleVote = async (value) => {
-    await api.post('/votes', { targetType: 'Post', targetId: id, value });
+    await api.post('/votes', { targetType: 'Post', targetId: post._id, value });
   };
 
   const submitComment = async (e) => {
@@ -59,7 +75,7 @@ export default function PostPage() {
     setSubmitting(true);
     try {
       // backend: POST /api/comments { text, post, parentComment }
-      const { data } = await api.post('/comments', { text, post: id, parentComment: null });
+      const { data } = await api.post('/comments', { text, post: post._id, parentComment: null });
       setComments([{ ...data, replies: [] }, ...comments]);
       setText('');
       success('Коментар успішно додано!');
@@ -72,6 +88,7 @@ export default function PostPage() {
 
   const onReplyAdded = (parentId, reply) => setComments(insertReply(comments, parentId, reply));
 
+  if (notFound) return <p className="mt-4 text-center text-secondary">Пост не знайдено.</p>;
   if (!post) return <p className="mt-4 text-center text-secondary">Завантаження...</p>;
 
   return (
@@ -81,7 +98,7 @@ export default function PostPage() {
           <VoteButtons score={post.karma} myVote={post.myVote} onVote={handleVote} />
           <div className="flex-grow-1">
             <div className="small text-secondary">
-              <Link to={`/r/${post.category?._id}`}>r/{post.category?.name}</Link> · u/{post.author?.nickname}
+              <Link to={`/r/${encodeURIComponent(post.category?.name)}`}>r/{post.category?.name}</Link> · u/{post.author?.nickname}
             </div>
             <h5 className="mb-0">{post.title}</h5>
             <p className="mt-2">{post.description}</p>
@@ -109,7 +126,7 @@ export default function PostPage() {
         </form>
       )}
 
-      <CommentTree comments={comments} postId={id} onReplyAdded={onReplyAdded} />
+      <CommentTree comments={comments} postId={post._id} onReplyAdded={onReplyAdded} />
     </div>
   );
 }

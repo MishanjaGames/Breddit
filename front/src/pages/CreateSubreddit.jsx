@@ -17,7 +17,7 @@ export default function CreateSubreddit() {
       // backend: POST /api/categories { name, description } -> category object directly
       const { data } = await api.post('/categories', form);
       success('Спільнота успішно створена!');
-      navigate(`/r/${data._id}`);
+      navigate(`/r/${encodeURIComponent(data.name)}`);
     } catch (err) {
       error(err.response?.data?.message || 'Помилка створення');
     } finally {
