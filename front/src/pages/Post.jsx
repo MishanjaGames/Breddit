@@ -6,6 +6,9 @@ import VoteButtons from '../components/VoteButtons';
 import PostMenu from '../components/PostMenu';
 import AuthorBadge, { getAuthorRole } from '../components/AuthorBadge';
 import CommentThread from '../components/CommentThread';
+import MediaGallery from '../components/MediaGallery';
+import MediaPicker from '../components/MediaPicker';
+import { buildCommentTree } from '../utils/commentTree';
 import timeAgo from '../utils/timeAgo';
 import { useAuth } from '../context/AuthContext';
 
@@ -18,9 +21,10 @@ export default function Post() {
   const [post, setPost] = useState(null);
   const [comments, setComments] = useState([]);
   const [text, setText] = useState('');
+  const [files, setFiles] = useState([]);
+  const [posting, setPosting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
-  const [galleryIndex, setGalleryIndex] = useState(0);
   const [commentSort, setCommentSort] = useState('best');
   const [commentSearch, setCommentSearch] = useState('');
 
@@ -37,10 +41,18 @@ export default function Post() {
       if (!cancelled) {
         setPost(found || null);
         setSaved(!!found?.isSaved);
+        if (found) {
+          try {
+            const prev = JSON.parse(localStorage.getItem('recentPosts') || '[]');
+            const entry = { _id: found._id, title: found.title, subName: name, createdAt: found.createdAt };
+            const next = [entry, ...prev.filter((p) => p._id !== found._id)].slice(0, 10);
+            localStorage.setItem('recentPosts', JSON.stringify(next));
+          } catch { /* ignore */ }
+        }
       }
       if (found) {
-        api.get(`/posts/${found._id}/comments`)
-          .then(({ data }) => { if (!cancelled) setComments(data.comments || data || []); })
+        api.get(`/comments/post/${found._id}`)
+          .then(({ data }) => { if (!cancelled) setComments(data || []); })
           .catch(() => {});
       }
     }).finally(() => { if (!cancelled) setLoading(false); });
@@ -67,21 +79,34 @@ export default function Post() {
   const submitComment = async (e) => {
     e.preventDefault();
     if (!text.trim() || !post) return;
+    setPosting(true);
     try {
-      const { data } = await api.post(`/posts/${post._id}/comments`, { text });
-      setComments((prev) => [data.comment || data, ...prev]);
+      const form = new FormData();
+      form.append('text', text);
+      form.append('post', post._id);
+      files.forEach((f) => form.append('media', f));
+
+      const { data } = await api.post('/comments', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setComments((prev) => [data, ...prev]);
       setText('');
-    } catch { /* ignore */ }
+      setFiles([]);
+    } catch { /* ignore */ } finally {
+      setPosting(false);
+    }
   };
 
-  const images = useMemo(() => {
-    if (Array.isArray(post?.images) && post.images.length) return post.images;
-    if (post?.thumbnail) return [post.thumbnail];
-    return [];
-  }, [post]);
+  const addReply = (newComment) => {
+    setComments((prev) => [newComment, ...prev]);
+  };
+
+  const images = useMemo(() => post?.media || [], [post]);
+
+  const commentTree = useMemo(() => buildCommentTree(comments), [comments]);
 
   const sortedComments = useMemo(() => {
-    let list = [...comments];
+    let list = [...commentTree];
     if (commentSearch.trim()) {
       const q = commentSearch.trim().toLowerCase();
       list = list.filter((c) => (c.text || '').toLowerCase().includes(q));
@@ -94,7 +119,7 @@ export default function Post() {
       list.sort((a, b) => (b.karma ?? 0) - (a.karma ?? 0));
     }
     return list;
-  }, [comments, commentSort, commentSearch]);
+  }, [commentTree, commentSort, commentSearch]);
 
   if (loading) return <p className="feed-status">Завантаження…</p>;
   if (!post) return <p className="feed-status">Пост не знайдено.</p>;
@@ -102,9 +127,7 @@ export default function Post() {
   const authorName = post.author?.nickname || post.author?.username;
   const authorRole = getAuthorRole(post.author?._id || post.author, {
     postAuthorId: post.author?._id || post.author,
-    moderators: category?.moderators,
   });
-  const externalLink = post.link || post.url;
 
   return (
     <div className="post-detail-layout">
@@ -129,34 +152,9 @@ export default function Post() {
 
           <h1 className="post-title-full">{post.title}</h1>
 
-          {images.length > 0 && (
-            <div className="post-gallery">
-              <img className="post-gallery-img" src={images[galleryIndex]} alt="" />
-              {images.length > 1 && (
-                <>
-                  {galleryIndex > 0 && (
-                    <button className="post-gallery-nav prev" onClick={() => setGalleryIndex((i) => i - 1)} aria-label="Попереднє зображення">‹</button>
-                  )}
-                  {galleryIndex < images.length - 1 && (
-                    <button className="post-gallery-nav next" onClick={() => setGalleryIndex((i) => i + 1)} aria-label="Наступне зображення">›</button>
-                  )}
-                  <div className="post-gallery-dots">
-                    {images.map((_, i) => (
-                      <span key={i} className={`post-gallery-dot ${i === galleryIndex ? 'active' : ''}`} />
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+          <MediaGallery media={images} />
 
           {post.description && <p className="post-desc">{post.description}</p>}
-
-          {externalLink && (
-            <a className="post-external-link" href={externalLink} target="_blank" rel="noopener noreferrer">
-              {post.linkLabel || 'Read more'}: {externalLink}
-            </a>
-          )}
 
           <footer className="post-card-foot">
             <VoteButtons score={post.karma} myVote={post.myVote} onVote={handleVote} />
@@ -172,8 +170,9 @@ export default function Post() {
               value={text}
               onChange={(e) => setText(e.target.value)}
             />
-            <button className="btn btn-primary btn-sm" type="submit" disabled={!text.trim()}>
-              Коментувати
+            <MediaPicker files={files} onChange={setFiles} />
+            <button className="btn btn-primary btn-sm" type="submit" disabled={!text.trim() || posting}>
+              {posting ? 'Публікація…' : 'Коментувати'}
             </button>
           </form>
         )}
@@ -211,7 +210,7 @@ export default function Post() {
               key={c._id}
               comment={c}
               postAuthorId={post.author?._id || post.author}
-              moderators={category?.moderators}
+              onReplyAdded={addReply}
               depth={0}
             />
           ))}
@@ -230,9 +229,6 @@ export default function Post() {
                   <span className="side-icon">🗓</span> Created {new Date(category.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </span>
               )}
-              <span className="community-meta-row">
-                <span className="side-icon">🌐</span> {category.type === 'private' ? 'Private' : category.type === 'restricted' ? 'Restricted' : 'Public'}
-              </span>
             </div>
 
             <div className="profile-stats">
@@ -240,49 +236,12 @@ export default function Post() {
                 <strong>{category.subscriberCount ?? 0}</strong>
                 <span>Members</span>
               </div>
-              <div>
-                <strong>{category.onlineCount ?? '—'}</strong>
-                <span>Online</span>
-              </div>
             </div>
 
             <Link className="btn btn-outline btn-block" to={`/r/${encodeURIComponent(category.name)}`}>
               Перейти до спільноти
             </Link>
           </div>
-
-          {category.socialLinks && (category.socialLinks.website || category.socialLinks.discord || category.socialLinks.twitter) && (
-            <div className="side-card">
-              <h3>SOCIAL LINKS</h3>
-              <div className="social-link-list">
-                {category.socialLinks.website && (
-                  <a className="btn btn-outline btn-sm btn-block" href={category.socialLinks.website} target="_blank" rel="noopener noreferrer">Website</a>
-                )}
-                {category.socialLinks.discord && (
-                  <a className="btn btn-outline btn-sm btn-block" href={category.socialLinks.discord} target="_blank" rel="noopener noreferrer">Discord</a>
-                )}
-                {category.socialLinks.twitter && (
-                  <a className="btn btn-outline btn-sm btn-block" href={category.socialLinks.twitter} target="_blank" rel="noopener noreferrer">Twitter</a>
-                )}
-              </div>
-            </div>
-          )}
-
-          {category.moderators?.length > 0 && (
-            <div className="side-card">
-              <h3>MODERATORS</h3>
-              <button className="side-link static full-width">✉ Message Mods</button>
-              <div className="mod-list">
-                {category.moderators.map((m) => (
-                  <Link key={m._id || m} to={`/user/${m.nickname || m}`} className="mod-row">
-                    <span className="avatar-dot small">{(m.nickname || m)?.[0]?.toUpperCase()}</span>
-                    u/{m.nickname || m}
-                  </Link>
-                ))}
-              </div>
-              <button className="widget-more">View all moderators</button>
-            </div>
-          )}
         </aside>
       )}
     </div>

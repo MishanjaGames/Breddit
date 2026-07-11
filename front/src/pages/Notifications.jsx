@@ -16,8 +16,14 @@ export default function Notifications() {
   }, []);
 
   const markAllRead = async () => {
-    setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+    setItems((prev) => prev.map((n) => ({ ...n, isRead: true })));
     try { await api.post('/notifications/read-all'); } catch { /* ignore */ }
+  };
+
+  const markOneRead = async (n) => {
+    if (n.isRead) return;
+    setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, isRead: true } : x)));
+    try { await api.patch(`/notifications/${n.id}/read`); } catch { /* ignore */ }
   };
 
   return (
@@ -43,15 +49,19 @@ export default function Notifications() {
 
       <div className="notification-list">
         {items.map((n) => (
-          <div key={n._id} className={`notification-item ${n.read ? '' : 'unread'}`}>
-            {!n.read && <span className="notification-unread-dot" aria-hidden="true" />}
-            <span className="sub-icon">{(n.from || 'r')[0]?.toUpperCase()}</span>
+          <button
+            key={n.id}
+            className={`notification-item ${n.isRead ? '' : 'unread'}`}
+            onClick={() => markOneRead(n)}
+          >
+            {!n.isRead && <span className="notification-unread-dot" aria-hidden="true" />}
+            <span className="sub-icon">{(n.fromUser?.nickname || '?')[0]?.toUpperCase()}</span>
             <div className="notification-body">
-              <p className="notification-title">{n.title || n.from}</p>
-              <p className="notification-text">{n.text || n.message}</p>
+              {n.fromUser && <p className="notification-title">u/{n.fromUser.nickname}</p>}
+              <p className="notification-text">{n.message}</p>
               <span className="post-meta-text">{timeAgo(n.createdAt)}</span>
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>

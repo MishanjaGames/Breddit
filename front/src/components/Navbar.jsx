@@ -19,7 +19,7 @@ export default function Navbar({ onToggleSidebar }) {
     let cancelled = false;
     const check = () => {
       api.get('/notifications/unread-count')
-        .then(({ data }) => { if (!cancelled) setHasUnread((data.count ?? data.unread ?? 0) > 0); })
+        .then(({ data }) => { if (!cancelled) setHasUnread((data.unreadCount ?? 0) > 0); })
         .catch(() => {});
     };
     check();
@@ -35,6 +35,7 @@ export default function Navbar({ onToggleSidebar }) {
   return (
     <nav className="navbar">
       <div className="navbar-left">
+        <button className="hamburger-btn" onClick={onToggleSidebar} aria-label="Меню">☰</button>
         <Link className="navbar-brand" to="/">
           <span className="brand-icon">r</span>
           <span className="brand-word">reddit</span>

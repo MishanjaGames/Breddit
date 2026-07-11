@@ -60,16 +60,11 @@ export default function CreateCommunityModal() {
     if (!name.trim()) return;
     setBusy(true);
     try {
-      const { data } = await api.post('/categories', {
-        name,
-        description,
-        topic,
-        type,
-        mature,
-      });
+      // backend POST /api/categories only accepts { name, description, icon, banner, rules }
+      const { data } = await api.post('/categories', { name, description });
       toast.success('Спільноту створено');
       close();
-      navigate(`/r/${encodeURIComponent(data.category?.name || name)}`);
+      navigate(`/r/${encodeURIComponent(data?.name || name)}`);
     } catch {
       toast.error('Не вдалося створити спільноту');
     } finally {

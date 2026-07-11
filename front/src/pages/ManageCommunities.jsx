@@ -33,22 +33,23 @@ export default function ManageCommunities() {
   const toast = useToast();
   const { openModal: openCreateCommunity } = useCreateCommunityModal();
   const [owned, setOwned] = useState([]);
-  const [moderated, setModerated] = useState([]);
   const [subscribed, setSubscribed] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // backend has no "moderated" concept and no dedicated "owned" endpoint,
+  // so we derive ownership from the subscribed list by comparing creator to the current user
   const load = () => {
     setLoading(true);
-    Promise.all([
-      api.get('/categories/mine/moderated').then(({ data }) => data).catch(() => []),
-      api.get('/categories/mine/subscribed').then(({ data }) => data).catch(() => []),
-    ]).then(([mod, subs]) => {
-      const ownedList = (mod || []).filter((c) => (c.owner === user?._id) || (c.owner?._id === user?._id));
-      const modOnlyList = (mod || []).filter((c) => !((c.owner === user?._id) || (c.owner?._id === user?._id)));
-      setOwned(ownedList);
-      setModerated(modOnlyList);
-      setSubscribed(subs || []);
-    }).finally(() => setLoading(false));
+    api.get('/categories/mine/subscribed')
+      .then(({ data }) => {
+        const list = data || [];
+        const ownedList = list.filter((c) => (c.creator === user?._id) || (c.creator?._id === user?._id));
+        const notOwned = list.filter((c) => !((c.creator === user?._id) || (c.creator?._id === user?._id)));
+        setOwned(ownedList);
+        setSubscribed(notOwned);
+      })
+      .catch(() => { setOwned([]); setSubscribed([]); })
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -84,15 +85,6 @@ export default function ManageCommunities() {
           {owned.map((c) => <CommunityRow key={c._id} c={c} isOwner onLeave={handleLeave} />)}
         </div>
       </section>
-
-      {moderated.length > 0 && (
-        <section className="manage-communities-section">
-          <h2>Ви модеруєте</h2>
-          <div className="manage-community-list">
-            {moderated.map((c) => <CommunityRow key={c._id} c={c} onLeave={handleLeave} />)}
-          </div>
-        </section>
-      )}
 
       <section className="manage-communities-section">
         <h2>Приєднані спільноти</h2>

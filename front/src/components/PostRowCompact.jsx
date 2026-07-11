@@ -4,6 +4,7 @@ import PostMenu from './PostMenu';
 import AuthorBadge, { getAuthorRole } from './AuthorBadge';
 import api from '../api/client';
 import timeAgo from '../utils/timeAgo';
+import { mediaUrl } from '../utils/media';
 import { useAuth } from '../context/AuthContext';
 import { useState } from 'react';
 
@@ -15,9 +16,9 @@ export default function PostRowCompact({ post }) {
   const authorName = post.author?.nickname || post.author?.username;
   const authorRole = getAuthorRole(post.author?._id || post.author, {
     postAuthorId: post.author?._id || post.author,
-    moderators: post.category?.moderators,
   });
   const isPinned = post.pinned || post.isPinned;
+  const thumb = post.media?.[0]?.type === 'video' ? null : mediaUrl(post.media?.[0]?.url);
 
   const handleVote = async (value) => {
     await api.post('/votes', { targetType: 'Post', targetId: post._id, value });
@@ -40,8 +41,8 @@ export default function PostRowCompact({ post }) {
   return (
     <article className={`post-row-compact ${isPinned ? 'post-card-pinned' : ''}`}>
       <VoteButtons vertical score={post.karma} myVote={post.myVote} onVote={handleVote} />
-      {post.thumbnail ? (
-        <img className="compact-thumb" src={post.thumbnail} alt="" />
+      {thumb ? (
+        <img className="compact-thumb" src={thumb} alt="" />
       ) : (
         <div className="compact-thumb compact-thumb-placeholder">{subName?.[0]?.toUpperCase() || '?'}</div>
       )}

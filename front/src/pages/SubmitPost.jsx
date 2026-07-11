@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import api from '../api/client';
 import { resolveCategoryByName } from '../api/resolve';
 import { useToast } from '../context/ToastContext';
+import MediaPicker from '../components/MediaPicker';
 
 export default function SubmitPost() {
   const { name } = useParams();
@@ -10,6 +11,7 @@ export default function SubmitPost() {
   const toast = useToast();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [files, setFiles] = useState([]);
   const [busy, setBusy] = useState(false);
 
   const submit = async (e) => {
@@ -19,7 +21,16 @@ export default function SubmitPost() {
     try {
       const category = await resolveCategoryByName(name);
       if (!category) throw new Error('no category');
-      await api.post('/posts', { title, description, category: category._id });
+
+      const form = new FormData();
+      form.append('title', title);
+      form.append('description', description);
+      form.append('category', category._id);
+      files.forEach((f) => form.append('media', f));
+
+      await api.post('/posts', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       toast.success('Пост опубліковано');
       navigate(`/r/${encodeURIComponent(name)}`);
     } catch {
@@ -39,8 +50,9 @@ export default function SubmitPost() {
         </label>
         <label>
           Текст
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} />
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} required />
         </label>
+        <MediaPicker files={files} onChange={setFiles} />
         <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
           {busy ? 'Публікація…' : 'Опублікувати'}
         </button>

@@ -1,19 +1,10 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
 
-const STATUS_OPTIONS = [
-  { value: '', label: 'Без статусу' },
-  { value: 'active', label: '🟢 Активна' },
-  { value: 'growing', label: '📈 Зростає' },
-  { value: 'restricted', label: '🔒 Обмежена' },
-  { value: 'archived', label: '🗄 Архів' },
-];
-
 export default function EditCommunityModal({ category, initialTarget, onClose, onSaved }) {
   const [tab, setTab] = useState(initialTarget === 'description' ? 'name' : (initialTarget || 'name'));
   const [name, setName] = useState(category.name || '');
   const [description, setDescription] = useState(category.description || '');
-  const [status, setStatus] = useState(category.status || '');
   const [icon, setIcon] = useState(category.icon || '');
   const [banner, setBanner] = useState(category.banner || '');
   const [busy, setBusy] = useState(false);
@@ -36,10 +27,11 @@ export default function EditCommunityModal({ category, initialTarget, onClose, o
     e.preventDefault();
     setBusy(true);
     setError('');
-    const patch = { name, description, status, icon, banner };
+    // backend PUT /api/categories/:id accepts { name, description, icon, banner, rules }
+    const patch = { name, description, icon, banner, rules: category.rules || [] };
     try {
-      await api.patch(`/categories/${category._id}`, patch);
-      onSaved?.(patch);
+      const { data } = await api.put(`/categories/${category._id}`, patch);
+      onSaved?.(data);
       onClose();
     } catch {
       setError('Не вдалося зберегти зміни');
@@ -52,7 +44,6 @@ export default function EditCommunityModal({ category, initialTarget, onClose, o
     { key: 'name', label: 'Назва та опис' },
     { key: 'avatar', label: 'Зображення' },
     { key: 'banner', label: 'Банер' },
-    { key: 'status', label: 'Статус' },
   ];
 
   return (
@@ -84,7 +75,7 @@ export default function EditCommunityModal({ category, initialTarget, onClose, o
               </label>
               <label>
                 Опис
-                <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} />
+                <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} maxLength={500} />
               </label>
             </div>
           )}
@@ -114,19 +105,6 @@ export default function EditCommunityModal({ category, initialTarget, onClose, o
               {banner && (
                 <button type="button" className="link-btn" onClick={() => setBanner('')}>Прибрати банер</button>
               )}
-            </div>
-          )}
-
-          {tab === 'status' && (
-            <div className="edit-community-panel">
-              <label>
-                Статус спільноти
-                <select value={status} onChange={(e) => setStatus(e.target.value)}>
-                  {STATUS_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </label>
             </div>
           )}
 

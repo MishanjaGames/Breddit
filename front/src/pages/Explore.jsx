@@ -88,8 +88,8 @@ export default function Explore() {
       const sorted = [...communities].sort((a, b) => (b.subscriberCount ?? 0) - (a.subscriberCount ?? 0));
       return { 'Most visited': sorted };
     }
-    const filtered = communities.filter((c) => c.topic === tab);
-    return { [tab]: filtered };
+    // backend has no per-community topic field, so other tabs just show everything
+    return { [tab]: communities };
   }, [communities, tab]);
 
   return (

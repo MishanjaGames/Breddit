@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
+import { mediaUrl } from '../utils/media';
 
 export default function PopularCommunities() {
   const [communities, setCommunities] = useState([]);
@@ -21,7 +22,11 @@ export default function PopularCommunities() {
       <div className="widget-list">
         {communities.map((c) => (
           <Link key={c._id} to={`/r/${encodeURIComponent(c.name)}`} className="widget-row">
-            <span className="sub-icon">{c.name[0]?.toUpperCase()}</span>
+            {c.icon ? (
+              <img className="sub-icon" src={mediaUrl(c.icon) || c.icon} alt="" />
+            ) : (
+              <span className="sub-icon">{c.name[0]?.toUpperCase()}</span>
+            )}
             <div className="widget-row-text">
               <span className="widget-title">r/{c.name}</span>
               <span className="widget-sub">{(c.subscriberCount ?? 0).toLocaleString('uk-UA')} учасників</span>

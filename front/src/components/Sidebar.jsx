@@ -8,16 +8,12 @@ export default function Sidebar({ collapsed, onToggleSidebar }) {
   const { user } = useAuth();
   const { openModal: openCreateCommunity } = useCreateCommunityModal();
   const [communities, setCommunities] = useState([]);
-  const [modCommunities, setModCommunities] = useState([]);
-  const [customFeeds, setCustomFeeds] = useState([]);
   const [recent, setRecent] = useState([]);
-  const [open, setOpen] = useState({ moderation: true, custom: true, recent: true, communities: true, resources: true });
+  const [open, setOpen] = useState({ recent: true, communities: true, resources: true });
 
   useEffect(() => {
     if (user) {
       api.get('/categories/mine/subscribed').then(({ data }) => setCommunities(data)).catch(() => setCommunities([]));
-      api.get('/categories/mine/moderated').then(({ data }) => setModCommunities(data)).catch(() => setModCommunities([]));
-      api.get('/feeds/mine').then(({ data }) => setCustomFeeds(data)).catch(() => setCustomFeeds([]));
     } else {
       api.get('/categories').then(({ data }) => setCommunities((data || []).slice(0, 6))).catch(() => setCommunities([]));
     }
@@ -44,7 +40,7 @@ export default function Sidebar({ collapsed, onToggleSidebar }) {
         <button className="hamburger-btn" onClick={onToggleSidebar} aria-label="Згорнути меню">☰</button>
       </div>
       <div className="side-nav-scroll">
-        <NavLink to="/" end className={({ isActive }) => `side-link ${isActive ? 'active' : ''}`}>
+        <NavLink to="/" className="side-link">
           <span className="side-icon">🏠</span> Головна
         </NavLink>
         <NavLink to="/?tab=popular" className="side-link">
@@ -59,59 +55,6 @@ export default function Sidebar({ collapsed, onToggleSidebar }) {
         <button type="button" className="side-link full-width" onClick={openCreateCommunity}>
           <span className="side-icon">＋</span> Створити спільноту
         </button>
-
-        {modCommunities.length > 0 && (
-          <div className="side-section">
-            <button className="side-section-header" onClick={() => toggle('moderation')}>
-              <span>МОДЕРАЦІЯ</span>
-              <span className={`chevron ${open.moderation ? 'open' : ''}`}>˅</span>
-            </button>
-            {open.moderation && (
-              <div className="side-section-body">
-                <NavLink to="/mod/queue" className="side-link">
-                  <span className="side-icon">📋</span> Черга модерації
-                </NavLink>
-                <NavLink to="/mod/mail" className="side-link">
-                  <span className="side-icon">✉</span> Пошта модераторів
-                </NavLink>
-                <NavLink to="/mod" className="side-link">
-                  <span className="side-icon">🛠</span> r/Mod
-                </NavLink>
-                <NavLink to="/mod/manage" className="side-link">
-                  <span className="side-icon">⚙</span> Керувати
-                </NavLink>
-                {modCommunities.map((c) => (
-                  <NavLink key={c._id} to={`/r/${encodeURIComponent(c.name)}`} className="side-link">
-                    <span className="sub-icon">{c.name[0]?.toUpperCase()}</span>
-                    r/{c.name}
-                    <span className="star-icon">☆</span>
-                  </NavLink>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="side-section">
-          <button className="side-section-header" onClick={() => toggle('custom')}>
-            <span>СПЕЦІАЛЬНІ СТРІЧКИ</span>
-            <span className={`chevron ${open.custom ? 'open' : ''}`}>˅</span>
-          </button>
-          {open.custom && (
-            <div className="side-section-body">
-              <NavLink to="/feeds/new" className="side-link">
-                <span className="side-icon">＋</span> Створити стрічку
-              </NavLink>
-              {customFeeds.map((f) => (
-                <NavLink key={f._id} to={`/feed/${encodeURIComponent(f.name)}`} className="side-link">
-                  <span className="sub-icon feed-icon">{f.name[0]?.toUpperCase()}</span>
-                  {f.name}
-                  <span className="star-icon">☆</span>
-                </NavLink>
-              ))}
-            </div>
-          )}
-        </div>
 
         {recent.length > 0 && (
           <div className="side-section">

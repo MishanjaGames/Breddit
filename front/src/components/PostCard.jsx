@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import VoteButtons from './VoteButtons';
 import PostMenu from './PostMenu';
 import AuthorBadge, { getAuthorRole } from './AuthorBadge';
+import MediaGallery from './MediaGallery';
 import api from '../api/client';
 import timeAgo from '../utils/timeAgo';
 import { useAuth } from '../context/AuthContext';
@@ -12,7 +13,6 @@ export default function PostCard({ post }) {
   const [saved, setSaved] = useState(!!post.isSaved);
   const [saving, setSaving] = useState(false);
   const [hidden, setHidden] = useState(false);
-  const [joined, setJoined] = useState(!!post.category?.isSubscribed);
 
   const handleVote = async (value) => {
     await api.post('/votes', { targetType: 'Post', targetId: post._id, value });
@@ -39,7 +39,6 @@ export default function PostCard({ post }) {
   const authorName = post.author?.nickname || post.author?.username;
   const authorRole = getAuthorRole(post.author?._id || post.author, {
     postAuthorId: post.author?._id || post.author,
-    moderators: post.category?.moderators,
   });
   const isPinned = post.pinned || post.isPinned;
 
@@ -58,14 +57,6 @@ export default function PostCard({ post }) {
         <span className="post-dot">·</span>
         <span className="post-meta-text">{timeAgo(post.createdAt)}</span>
         {isPinned && <span className="pinned-tag">📌 Закріплено</span>}
-        {user && (
-          <button
-            className={`btn btn-sm join-btn ${joined ? 'btn-outline' : 'btn-primary'}`}
-            onClick={() => setJoined(!joined)}
-          >
-            {joined ? 'Приєднано' : 'Приєднатись'}
-          </button>
-        )}
         <PostMenu saved={saved} onSave={toggleSave} onHide={() => setHidden(true)} />
       </header>
 
@@ -74,6 +65,8 @@ export default function PostCard({ post }) {
       </Link>
 
       {post.description && <p className="post-desc">{post.description}</p>}
+
+      <MediaGallery media={post.media} />
 
       <footer className="post-card-foot">
         <VoteButtons score={post.karma} myVote={post.myVote} onVote={handleVote} />

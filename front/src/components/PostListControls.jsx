@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-const SORTS = { best: 'Best', hot: 'Hot', new: 'New', top: 'Top', rising: 'Rising' };
+const SORTS = { hot: 'Hot', new: 'New', top: 'Top', controversial: 'Controversial' };
 
 export default function PostListControls({ sort, onSortChange, view, onViewChange }) {
   const [sortOpen, setSortOpen] = useState(false);

@@ -12,7 +12,7 @@ export default function Home() {
   const { user } = useAuth();
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const sort = params.get('sort') || 'best';
+  const sort = params.get('sort') || 'hot';
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

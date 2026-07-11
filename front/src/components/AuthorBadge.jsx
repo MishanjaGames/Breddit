@@ -1,10 +1,11 @@
-// Determines whether an author is the post's OP and/or a moderator of the category,
+// Determines whether an author is the post's OP or the community creator,
 // and renders the small colored badges Reddit shows next to usernames.
+// Backend has no moderator list, only a single Category.creator, so "MOD" means creator.
 
-export function getAuthorRole(authorId, { postAuthorId, moderators } = {}) {
+export function getAuthorRole(authorId, { postAuthorId, creatorId } = {}) {
   if (!authorId) return null;
   const isOP = postAuthorId && authorId === postAuthorId;
-  const isMod = (moderators || []).some((m) => (m._id || m) === authorId);
+  const isMod = creatorId && authorId === creatorId;
   if (isOP && isMod) return 'op-mod';
   if (isOP) return 'op';
   if (isMod) return 'mod';

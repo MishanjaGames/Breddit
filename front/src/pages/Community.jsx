@@ -8,9 +8,7 @@ import PostCard from '../components/PostCard';
 import PostRowCompact from '../components/PostRowCompact';
 import PostListControls from '../components/PostListControls';
 import EditCommunityModal from '../components/EditCommunityModal';
-
-const PRIVACY_LABEL = { public: 'Public', restricted: 'Restricted', private: 'Private' };
-const PRIVACY_ICON = { public: '🌐', restricted: '👁', private: '🔒' };
+import { mediaUrl } from '../utils/media';
 
 function formatCreatedDate(value) {
   if (!value) return null;
@@ -29,10 +27,10 @@ export default function Community() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [joined, setJoined] = useState(false);
-  const [sort, setSort] = useState('best');
+  const [sort, setSort] = useState('hot');
   const [view, setView] = useState(() => localStorage.getItem('feedView') || 'card');
   const [editOpen, setEditOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState(null); // 'avatar' | 'banner' | 'name' | 'status' | null
+  const [editTarget, setEditTarget] = useState(null); // 'avatar' | 'banner' | 'name' | null
   const [rulesOpen, setRulesOpen] = useState({});
 
   useEffect(() => {
@@ -43,6 +41,11 @@ export default function Community() {
       setCategory(cat);
       setJoined(!!cat?.isSubscribed);
       if (cat) {
+        try {
+          const prev = JSON.parse(localStorage.getItem('recentCommunities') || '[]');
+          const next = [cat.name, ...prev.filter((n) => n !== cat.name)].slice(0, 8);
+          localStorage.setItem('recentCommunities', JSON.stringify(next));
+        } catch { /* ignore */ }
         api.get('/posts', { params: { category: cat._id, sort } })
           .then(({ data }) => {
             if (cancelled) return;
@@ -71,6 +74,7 @@ export default function Community() {
       else await api.delete(`/categories/${category._id}/subscribe`);
     } catch {
       setJoined(!next);
+      toast.error('Не вдалося оновити підписку');
     }
   };
 
@@ -90,9 +94,8 @@ export default function Community() {
   if (!category) return <p className="feed-status">Спільноту r/{name} не знайдено.</p>;
 
   const rules = category.rules || [];
-  const isOwner = user && category.owner && (category.owner === user._id || category.owner?._id === user._id);
-  const isMod = isOwner || (user && (category.moderators || []).some((m) => (m._id || m) === user._id));
-  const privacy = category.type || 'public';
+  const creatorId = category.creator?._id || category.creator;
+  const isOwner = !!(user && creatorId && creatorId === user._id);
   const createdLabel = formatCreatedDate(category.createdAt);
 
   return (
@@ -100,7 +103,7 @@ export default function Community() {
       <header className="community-header">
         <div
           className="community-banner"
-          style={category.banner ? { backgroundImage: `url(${category.banner})` } : undefined}
+          style={category.banner ? { backgroundImage: `url(${mediaUrl(category.banner) || category.banner})` } : undefined}
         >
           {isOwner && (
             <button
@@ -114,7 +117,7 @@ export default function Community() {
         <div className="community-header-row">
           <div className="community-avatar-wrap">
             {category.icon ? (
-              <img className="sub-icon large" src={category.icon} alt="" />
+              <img className="sub-icon large" src={mediaUrl(category.icon) || category.icon} alt="" />
             ) : (
               <span className="sub-icon large">{category.name[0]?.toUpperCase()}</span>
             )}
@@ -134,12 +137,11 @@ export default function Community() {
                 <button className="community-edit-inline" onClick={() => openEdit('name')} title="Редагувати назву та опис">✎</button>
               )}
             </h1>
-            {category.status && <span className="community-status-tag">{category.status}</span>}
           </div>
 
           <div className="community-header-actions">
             {isOwner && <span className="owner-badge" title="Ви власник спільноти">👑 Власник</span>}
-            {user && !isMod && (
+            {user && !isOwner && (
               <button
                 className={`btn btn-sm join-btn ${joined ? 'btn-outline' : 'btn-primary'}`}
                 onClick={toggleJoin}
@@ -150,11 +152,6 @@ export default function Community() {
             {user && (
               <Link className="btn btn-primary btn-sm" to={`/r/${encodeURIComponent(category.name)}/submit`}>
                 + Створити пост
-              </Link>
-            )}
-            {isMod && (
-              <Link className="btn btn-outline btn-sm" to={`/r/${encodeURIComponent(category.name)}/mod`}>
-                🛠 Mod Tools
               </Link>
             )}
           </div>
@@ -171,21 +168,6 @@ export default function Community() {
 
       <div className="community-body">
         <div className="feed-content">
-          {category.highlights?.length > 0 && (
-            <div className="community-highlights">
-              {category.highlights.map((h, i) => (
-                <Link key={i} to={h.link || '#'} className="highlight-card">
-                  <span className="highlight-card-tag">{h.tag || 'Announcement'}</span>
-                  <span className="highlight-card-title">{h.title}</span>
-                  <span className="highlight-card-meta">
-                    {h.votes != null && `${h.votes} votes`}
-                    {h.votes != null && h.comments != null && ' · '}
-                    {h.comments != null && `${h.comments} comments`}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
           <PostListControls sort={sort} onSortChange={setSort} view={view} onViewChange={setView2} />
           <div className={view === 'compact' ? 'post-list post-list-compact' : 'post-list'}>
             {posts.length === 0 && <p className="feed-status">У цій спільноті ще немає постів.</p>}
@@ -212,26 +194,12 @@ export default function Community() {
                   <span className="side-icon">🗓</span> Created {createdLabel}
                 </span>
               )}
-              <span className="community-meta-row">
-                <span className="side-icon">{PRIVACY_ICON[privacy]}</span> {PRIVACY_LABEL[privacy]}
-              </span>
             </div>
-
-            {isOwner && (
-              <div className="community-owner-actions">
-                <button className="btn btn-outline btn-sm btn-block">📘 Mod Guide</button>
-                <button className="btn btn-outline btn-sm btn-block">📖 Community Guide</button>
-              </div>
-            )}
 
             <div className="profile-stats">
               <div>
                 <strong>{category.subscriberCount ?? 0}</strong>
-                <span>Visitors</span>
-              </div>
-              <div>
-                <strong>{category.contributionCount ?? 0}</strong>
-                <span>Contributions</span>
+                <span>Members</span>
               </div>
             </div>
             {user && (
@@ -245,62 +213,30 @@ export default function Community() {
             <div className="side-card">
               <div className="side-card-head-row">
                 <h3>r/{category.name} RULES</h3>
-                {isMod && <button className="icon-btn" title="Редагувати правила">✎</button>}
               </div>
               <ol className="rules-list rules-list-collapsible">
                 {rules.map((r, i) => (
                   <li key={i}>
                     <button className="rule-toggle" onClick={() => toggleRule(i)}>
-                      <span>{i + 1}&nbsp;&nbsp;{r}</span>
+                      <span>{i + 1}&nbsp;&nbsp;{r.title || r}</span>
                       <span className={`chevron ${rulesOpen[i] ? 'open' : ''}`}>˅</span>
                     </button>
+                    {rulesOpen[i] && r.body && <p className="rule-body">{r.body}</p>}
                   </li>
                 ))}
               </ol>
             </div>
           )}
 
-          <div className="side-card">
-            <h3>MODERATORS</h3>
-            <button className="side-link static full-width">✉ Message Mods</button>
-            {isMod && <button className="side-link static full-width">➕ Invite Mod</button>}
-            {category.moderators?.length > 0 && (
-              <div className="mod-list">
-                {category.moderators.map((m) => (
-                  <Link key={m._id || m} to={`/user/${m.nickname || m}`} className="mod-row">
-                    <span className="avatar-dot small">{(m.nickname || m)?.[0]?.toUpperCase()}</span>
-                    u/{m.nickname || m}
-                  </Link>
-                ))}
-              </div>
-            )}
-            <button className="widget-more">View all moderators</button>
-          </div>
-
-          {isOwner && (
+          {category.creator && (
             <div className="side-card">
-              <div className="side-card-head-row">
-                <h3>COMMUNITY SETTINGS</h3>
-              </div>
-              <div className="community-settings-row">
-                <span>Community Appearance</span>
-                <button className="icon-btn" onClick={() => openEdit('avatar')} title="Редагувати вигляд">✎</button>
-              </div>
-              <button className="btn btn-primary btn-sm btn-block">Edit Widgets</button>
-            </div>
-          )}
-
-          {isMod && (
-            <div className="side-card mod-panel">
-              <h3>Панель модератора</h3>
-              <Link className="side-link" to={`/r/${encodeURIComponent(category.name)}/mod/queue`}>
-                <span className="side-icon">📋</span> Черга модерації
-              </Link>
-              <Link className="side-link" to={`/r/${encodeURIComponent(category.name)}/mod/mail`}>
-                <span className="side-icon">✉</span> Пошта модераторів
-              </Link>
-              <Link className="side-link" to={`/r/${encodeURIComponent(category.name)}/mod/settings`}>
-                <span className="side-icon">⚙</span> Керувати спільнотою
+              <h3>CREATOR</h3>
+              <Link
+                to={`/user/${category.creator.nickname || category.creator}`}
+                className="mod-row"
+              >
+                <span className="avatar-dot small">{(category.creator.nickname || '?')[0]?.toUpperCase()}</span>
+                u/{category.creator.nickname || category.creator}
               </Link>
             </div>
           )}
