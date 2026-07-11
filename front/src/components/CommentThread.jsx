@@ -6,6 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import AuthorBadge, { getAuthorRole } from './AuthorBadge';
 import MediaGallery from './MediaGallery';
 import MediaPicker from './MediaPicker';
+import MarkdownEditor from './MarkdownEditor';
+import MarkdownText from '../utils/markdown.jsx';
 
 export default function CommentThread({ comment, postAuthorId, onReplyAdded, depth = 0 }) {
   const { user } = useAuth();
@@ -82,7 +84,7 @@ export default function CommentThread({ comment, postAuthorId, onReplyAdded, dep
 
         {!collapsed && (
           <>
-            <p className="comment-text">{comment.text}</p>
+            <MarkdownText className="comment-text" text={comment.text} />
             <MediaGallery media={comment.media} />
             <div className="comment-actions">
               <div className="vote-pill vote-pill-mini">
@@ -100,11 +102,12 @@ export default function CommentThread({ comment, postAuthorId, onReplyAdded, dep
 
             {replying && (
               <form className="comment-form comment-reply-form" onSubmit={submitReply}>
-                <textarea
+                <MarkdownEditor
                   autoFocus
+                  minRows={3}
                   placeholder={`Відповісти ${authorName ? `u/${authorName}` : ''}`}
                   value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
+                  onChange={setReplyText}
                 />
                 <MediaPicker files={replyFiles} onChange={setReplyFiles} />
                 <div className="comment-reply-form-actions">

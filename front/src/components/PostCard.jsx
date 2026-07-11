@@ -7,6 +7,7 @@ import MediaGallery from './MediaGallery';
 import api from '../api/client';
 import timeAgo from '../utils/timeAgo';
 import { useAuth } from '../context/AuthContext';
+import MarkdownText from '../utils/markdown.jsx';
 
 export default function PostCard({ post }) {
   const { user } = useAuth();
@@ -64,7 +65,7 @@ export default function PostCard({ post }) {
         {post.title}
       </Link>
 
-      {post.description && <p className="post-desc">{post.description}</p>}
+      {post.description && <MarkdownText className="post-desc" text={post.description} />}
 
       <MediaGallery media={post.media} />
 

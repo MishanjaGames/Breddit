@@ -10,6 +10,8 @@ import MediaGallery from '../components/MediaGallery';
 import MediaPicker from '../components/MediaPicker';
 import { buildCommentTree } from '../utils/commentTree';
 import timeAgo from '../utils/timeAgo';
+import MarkdownText from '../utils/markdown.jsx';
+import MarkdownEditor from '../components/MarkdownEditor';
 import { useAuth } from '../context/AuthContext';
 
 const COMMENT_SORTS = { best: 'Best', new: 'New', old: 'Old', top: 'Top' };
@@ -154,7 +156,7 @@ export default function Post() {
 
           <MediaGallery media={images} />
 
-          {post.description && <p className="post-desc">{post.description}</p>}
+          {post.description && <MarkdownText className="post-desc" text={post.description} />}
 
           <footer className="post-card-foot">
             <VoteButtons score={post.karma} myVote={post.myVote} onVote={handleVote} />
@@ -165,10 +167,11 @@ export default function Post() {
 
         {user && (
           <form className="comment-form" onSubmit={submitComment}>
-            <textarea
+            <MarkdownEditor
               placeholder="Приєднатись до обговорення"
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={setText}
+              minRows={3}
             />
             <MediaPicker files={files} onChange={setFiles} />
             <button className="btn btn-primary btn-sm" type="submit" disabled={!text.trim() || posting}>

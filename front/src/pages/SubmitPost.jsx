@@ -4,6 +4,7 @@ import api from '../api/client';
 import { resolveCategoryByName } from '../api/resolve';
 import { useToast } from '../context/ToastContext';
 import MediaPicker from '../components/MediaPicker';
+import MarkdownEditor from '../components/MarkdownEditor';
 import { getDraft, saveDraft, deleteDraft } from '../utils/drafts';
 
 export default function SubmitPost() {
@@ -77,7 +78,7 @@ export default function SubmitPost() {
         </label>
         <label>
           Текст
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} required />
+          <MarkdownEditor value={description} onChange={setDescription} minRows={6} placeholder="Підтримується Markdown…" />
         </label>
         <MediaPicker files={files} onChange={setFiles} />
         <div className="submit-post-actions">
