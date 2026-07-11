@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import VoteButtons from './VoteButtons';
 import PostMenu from './PostMenu';
+import AuthorBadge, { getAuthorRole } from './AuthorBadge';
 import api from '../api/client';
 import timeAgo from '../utils/timeAgo';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +12,12 @@ export default function PostRowCompact({ post }) {
   const [saved, setSaved] = useState(!!post.isSaved);
   const [hidden, setHidden] = useState(false);
   const subName = post.category?.name;
+  const authorName = post.author?.nickname || post.author?.username;
+  const authorRole = getAuthorRole(post.author?._id || post.author, {
+    postAuthorId: post.author?._id || post.author,
+    moderators: post.category?.moderators,
+  });
+  const isPinned = post.pinned || post.isPinned;
 
   const handleVote = async (value) => {
     await api.post('/votes', { targetType: 'Post', targetId: post._id, value });
@@ -31,7 +38,7 @@ export default function PostRowCompact({ post }) {
   if (hidden) return null;
 
   return (
-    <article className="post-row-compact">
+    <article className={`post-row-compact ${isPinned ? 'post-card-pinned' : ''}`}>
       <VoteButtons vertical score={post.karma} myVote={post.myVote} onVote={handleVote} />
       {post.thumbnail ? (
         <img className="compact-thumb" src={post.thumbnail} alt="" />
@@ -41,8 +48,16 @@ export default function PostRowCompact({ post }) {
       <div className="compact-body">
         <div className="compact-meta">
           {subName && <Link to={`/r/${encodeURIComponent(subName)}`} className="post-sub-link">r/{subName}</Link>}
+          {authorName && (
+            <>
+              <span className="post-dot">·</span>
+              <Link to={`/user/${authorName}`} className="post-author-link">u/{authorName}</Link>
+              <AuthorBadge role={authorRole} />
+            </>
+          )}
           <span className="post-dot">·</span>
           <span className="post-meta-text">{timeAgo(post.createdAt)}</span>
+          {isPinned && <span className="pinned-tag">📌</span>}
         </div>
         <Link to={`/r/${encodeURIComponent(subName)}/p/${encodeURIComponent(post.title)}`} className="compact-title">
           {post.title}

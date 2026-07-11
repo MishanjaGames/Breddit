@@ -3,11 +3,10 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import PostCard from '../components/PostCard';
 import PostRowCompact from '../components/PostRowCompact';
+import PostListControls from '../components/PostListControls';
 import RecentPosts from '../components/RecentPosts';
 import PopularCommunities from '../components/PopularCommunities';
 import { useAuth } from '../context/AuthContext';
-
-const SORTS = { best: 'Найкращі', hot: 'Гарячі', new: 'Нові', top: 'Топ', rising: 'Зростаючі' };
 
 export default function Home() {
   const { user } = useAuth();
@@ -18,7 +17,6 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [view, setView] = useState(() => localStorage.getItem('feedView') || 'card');
-  const [sortOpen, setSortOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,7 +31,6 @@ export default function Home() {
 
   const setSort = (key) => {
     navigate(`/?sort=${key}`);
-    setSortOpen(false);
   };
 
   const setView2 = (v) => {
@@ -44,39 +41,7 @@ export default function Home() {
   return (
     <div className="home-layout">
       <div className="feed">
-        <div className="feed-controls">
-          <div className="sort-dropdown">
-            <button className="sort-trigger" onClick={() => setSortOpen((o) => !o)}>
-              {SORTS[sort]} ˅
-            </button>
-            {sortOpen && (
-              <div className="sort-menu">
-                <span className="sort-menu-label">Sort by</span>
-                {Object.entries(SORTS).map(([key, label]) => (
-                  <button
-                    key={key}
-                    className={`sort-menu-item ${sort === key ? 'active' : ''}`}
-                    onClick={() => setSort(key)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="view-toggle">
-            <button
-              className={`view-toggle-btn ${view === 'card' ? 'active' : ''}`}
-              onClick={() => setView2('card')}
-              title="Картки"
-            >▤</button>
-            <button
-              className={`view-toggle-btn ${view === 'compact' ? 'active' : ''}`}
-              onClick={() => setView2('compact')}
-              title="Компактний вигляд"
-            >☰</button>
-          </div>
-        </div>
+        <PostListControls sort={sort} onSortChange={setSort} view={view} onViewChange={setView2} />
 
         {loading && <p className="feed-status">Завантаження…</p>}
         {error && <p className="feed-status error">{error}</p>}

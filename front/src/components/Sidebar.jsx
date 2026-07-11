@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useCreateCommunityModal } from '../context/CreateCommunityModalContext';
 
 export default function Sidebar({ collapsed, onToggleSidebar }) {
   const { user } = useAuth();
+  const { openModal: openCreateCommunity } = useCreateCommunityModal();
   const [communities, setCommunities] = useState([]);
   const [modCommunities, setModCommunities] = useState([]);
   const [customFeeds, setCustomFeeds] = useState([]);
@@ -54,9 +56,9 @@ export default function Sidebar({ collapsed, onToggleSidebar }) {
         <NavLink to="/explore" className="side-link">
           <span className="side-icon">🧭</span> Огляд
         </NavLink>
-        <NavLink to="/r/new" className="side-link">
+        <button type="button" className="side-link full-width" onClick={openCreateCommunity}>
           <span className="side-icon">＋</span> Створити спільноту
-        </NavLink>
+        </button>
 
         {modCommunities.length > 0 && (
           <div className="side-section">

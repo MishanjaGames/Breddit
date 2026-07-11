@@ -2,11 +2,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useAuthModal } from '../context/AuthModalContext';
+import { useCreateCommunityModal } from '../context/CreateCommunityModalContext';
+import UserMenu from './UserMenu';
 import api from '../api/client';
 
 export default function Navbar({ onToggleSidebar }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { openLogin, openRegister } = useAuthModal();
+  const { openModal: openCreateCommunity } = useCreateCommunityModal();
   const [q, setQ] = useState('');
   const [hasUnread, setHasUnread] = useState(false);
   const navigate = useNavigate();
@@ -32,7 +35,6 @@ export default function Navbar({ onToggleSidebar }) {
   return (
     <nav className="navbar">
       <div className="navbar-left">
-        <button className="hamburger-btn" onClick={onToggleSidebar} aria-label="Меню">☰</button>
         <Link className="navbar-brand" to="/">
           <span className="brand-icon">r</span>
           <span className="brand-word">reddit</span>
@@ -46,20 +48,16 @@ export default function Navbar({ onToggleSidebar }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <span className="ask-pill">✦ Запитати</span>
       </form>
       <div className="navbar-actions">
         {user ? (
           <>
-            <Link className="btn btn-outline btn-sm create-btn" to="/r/new">＋ Створити</Link>
+            <button className="btn btn-outline btn-sm create-btn" onClick={openCreateCommunity}>＋ Створити</button>
             <Link className="icon-btn notif-btn" to="/notifications" title="Сповіщення">
               🔔
               {hasUnread && <span className="notif-badge"><span className="notif-badge-dot" /></span>}
             </Link>
-            <Link className="avatar-link" to={`/user/${user.nickname}`}>
-              <span className="avatar-dot">{user.nickname?.[0]?.toUpperCase()}</span>
-            </Link>
-            <button className="btn btn-ghost btn-sm" onClick={logout}>Вийти</button>
+            <UserMenu />
           </>
         ) : (
           <>

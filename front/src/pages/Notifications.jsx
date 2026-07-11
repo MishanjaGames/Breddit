@@ -35,12 +35,16 @@ export default function Notifications() {
 
       {loading && <p className="feed-status">Завантаження…</p>}
       {!loading && items.length === 0 && (
-        <p className="feed-status">Немає нових сповіщень.</p>
+        <div className="notifications-empty">
+          <span className="notifications-empty-icon">🔔</span>
+          <p className="feed-status">Немає нових сповіщень.</p>
+        </div>
       )}
 
       <div className="notification-list">
         {items.map((n) => (
           <div key={n._id} className={`notification-item ${n.read ? '' : 'unread'}`}>
+            {!n.read && <span className="notification-unread-dot" aria-hidden="true" />}
             <span className="sub-icon">{(n.from || 'r')[0]?.toUpperCase()}</span>
             <div className="notification-body">
               <p className="notification-title">{n.title || n.from}</p>

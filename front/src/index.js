@@ -5,6 +5,7 @@ import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { AuthModalProvider } from './context/AuthModalContext';
+import { CreateCommunityModalProvider } from './context/CreateCommunityModalContext';
 import './styles/reddit.css';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
@@ -14,7 +15,9 @@ root.render(
       <AuthProvider>
         <ToastProvider>
           <AuthModalProvider>
-            <App />
+            <CreateCommunityModalProvider>
+              <App />
+            </CreateCommunityModalProvider>
           </AuthModalProvider>
         </ToastProvider>
       </AuthProvider>
