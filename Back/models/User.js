@@ -23,7 +23,7 @@ const userSchema = new Schema({
     },
     avatar: {
         type: String,
-        default: 'default-avatar.png'
+        default: null
     },
     karma: {
         type: Number,

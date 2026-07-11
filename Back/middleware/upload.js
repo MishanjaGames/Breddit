@@ -18,7 +18,7 @@ const storage = multer.diskStorage({
 });
 
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB — увеличено, чтобы анимированные GIF помещались с запасом
 
 const avatarUpload = multer({
     storage,

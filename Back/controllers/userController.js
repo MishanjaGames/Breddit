@@ -5,12 +5,12 @@ const User = require('../models/User');
 const Post = require('../models/Post');
 const Comment = require('../models/Comment');
 
-const DEFAULT_AVATAR = 'default-avatar.png';
+const DEFAULT_AVATAR = null; // фронтенд сам рисует дефолтную аватарку, когда avatar === null
 const AVATARS_DIR = path.join(__dirname, '..', 'uploads');
 
-// удаляет файл предыдущей аватарки, если это не дефолтная картинка
+// удаляет файл предыдущей аватарки, если она была реально загружена (не null)
 const removeOldAvatar = (avatar) => {
-    if (!avatar || avatar === DEFAULT_AVATAR) return;
+    if (!avatar) return;
     const oldPath = path.join(AVATARS_DIR, avatar);
     fs.unlink(oldPath, () => {}); // не критично, если файла уже нет
 };
