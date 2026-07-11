@@ -5,65 +5,51 @@ import { useToast } from '../context/ToastContext';
 
 export default function Register() {
   const { register } = useAuth();
-  const { success, error } = useToast();
-  const [form, setForm] = useState({ email: '', username: '', password: '' });
-  const [loading, setLoading] = useState(false);
+  const toast = useToast();
   const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
   const submit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setBusy(true);
+    setError('');
     try {
-      await register(form.email, form.username, form.password);
-      success('Успішно зареєстровані!');
+      await register(email, username, password);
+      toast.success('Акаунт створено');
       navigate('/');
-    } catch (err) {
-      error(err.response?.data?.message || err.response?.data?.error || 'Помилка реєстрації');
+    } catch {
+      setError('Не вдалося створити акаунт');
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
   return (
-    <div className="col-md-5 col-lg-4 mx-auto mt-5">
-      <h3 className="mb-3">Реєстрація</h3>
-      <form onSubmit={submit}>
-        <input 
-          className="form-control mb-2" 
-          type="email" 
-          placeholder="Email" 
-          required
-          disabled={loading}
-          value={form.email} 
-          onChange={(e) => setForm({ ...form, email: e.target.value })} 
-        />
-        <input 
-          className="form-control mb-2" 
-          placeholder="Username" 
-          required
-          disabled={loading}
-          value={form.username} 
-          onChange={(e) => setForm({ ...form, username: e.target.value })} 
-        />
-        <input 
-          className="form-control mb-3" 
-          type="password" 
-          placeholder="Пароль" 
-          required 
-          minLength={8}
-          disabled={loading}
-          value={form.password} 
-          onChange={(e) => setForm({ ...form, password: e.target.value })} 
-        />
-        <button 
-          className="btn btn-primary w-100" 
-          type="submit"
-          disabled={loading}
-        >
-          {loading ? 'Завантаження...' : 'Зареєструватись'}
+    <div className="auth-page">
+      <form className="auth-card" onSubmit={submit}>
+        <h1>Зареєструватися</h1>
+        {error && <p className="auth-error">{error}</p>}
+        <label>
+          Email
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        </label>
+        <label>
+          Ім'я користувача
+          <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required />
+        </label>
+        <label>
+          Пароль
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        </label>
+        <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
+          {busy ? 'Створення…' : 'Зареєструватися'}
         </button>
+        <p className="auth-switch">Вже є акаунт? <Link to="/login">Увійти</Link></p>
       </form>
-      <p className="mt-3 small">Вже маєте акаунт? <Link to="/login">Увійти</Link></p>
     </div>
   );
 }

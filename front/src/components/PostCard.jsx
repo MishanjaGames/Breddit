@@ -9,6 +9,7 @@ export default function PostCard({ post }) {
   const { user } = useAuth();
   const [saved, setSaved] = useState(!!post.isSaved);
   const [saving, setSaving] = useState(false);
+  const [joined, setJoined] = useState(!!post.category?.isSubscribed);
 
   const handleVote = async (value) => {
     await api.post('/votes', { targetType: 'Post', targetId: post._id, value });
@@ -32,46 +33,40 @@ export default function PostCard({ post }) {
   const subName = post.category?.name;
 
   return (
-    <div className="card mb-2">
-      <div className="card-body d-flex gap-2 py-2 px-2">
-        <VoteButtons score={post.karma} myVote={post.myVote} onVote={handleVote} />
-        <div className="flex-grow-1 min-w-0">
-          <div className="post-meta mb-1">
-            {subName && (
-              <>
-                <span className="sub-icon me-1">{subName[0]?.toUpperCase()}</span>
-                <Link to={`/r/${encodeURIComponent(subName)}`}>r/{subName}</Link>
-              </>
-            )}
-            <span className="mx-1">·</span>
-            Опубліковано u/{post.author?.nickname} {timeAgo(post.createdAt)}
-          </div>
-          <Link
-            to={`/r/${encodeURIComponent(subName)}/p/${encodeURIComponent(post.title)}`}
-            className="post-title text-decoration-none d-block"
+    <article className="post-card">
+      <header className="post-card-head">
+        <span className="sub-icon">{subName?.[0]?.toUpperCase() || '?'}</span>
+        {subName && <Link to={`/r/${encodeURIComponent(subName)}`} className="post-sub-link">r/{subName}</Link>}
+        <span className="post-dot">·</span>
+        <span className="post-meta-text">{timeAgo(post.createdAt)}</span>
+        {user && (
+          <button
+            className={`btn btn-sm join-btn ${joined ? 'btn-outline' : 'btn-primary'}`}
+            onClick={() => setJoined(!joined)}
           >
-            {post.title}
-          </Link>
-          {post.description && (
-            <p className="small text-secondary mb-1 mt-1" style={{
-              display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-            }}>
-              {post.description}
-            </p>
-          )}
-          <div className="d-flex gap-1 mt-1">
-            <Link to={`/r/${encodeURIComponent(subName)}/p/${encodeURIComponent(post.title)}`} className="post-action-btn text-decoration-none">
-              💬 {post.commentCount ?? 0} коментарів
-            </Link>
-            <button className="post-action-btn">↗ Поділитись</button>
-            {user && (
-              <button className="post-action-btn" onClick={toggleSave} disabled={saving}>
-                {saved ? '🔖 Збережено' : '🔖 Зберегти'}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+            {joined ? 'Приєднано' : 'Приєднатись'}
+          </button>
+        )}
+      </header>
+
+      <Link to={`/r/${encodeURIComponent(subName)}/p/${encodeURIComponent(post.title)}`} className="post-title">
+        {post.title}
+      </Link>
+
+      {post.description && <p className="post-desc">{post.description}</p>}
+
+      <footer className="post-card-foot">
+        <VoteButtons score={post.karma} myVote={post.myVote} onVote={handleVote} />
+        <Link to={`/r/${encodeURIComponent(subName)}/p/${encodeURIComponent(post.title)}`} className="post-action-btn">
+          💬 {post.commentCount ?? 0}
+        </Link>
+        <button className="post-action-btn">↗ Поширити</button>
+        {user && (
+          <button className="post-action-btn" onClick={toggleSave} disabled={saving}>
+            {saved ? '🔖 Збережено' : '🔖 Зберегти'}
+          </button>
+        )}
+      </footer>
+    </article>
   );
 }

@@ -1,43 +1,63 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import api from '../api/client';
-import PostCard from '../components/PostCard';
 
 export default function Search() {
   const [params] = useSearchParams();
   const q = params.get('q') || '';
-  const [results, setResults] = useState({ posts: [], categories: [] });
+  const [categories, setCategories] = useState([]);
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!q) return;
-    api.get('/search', { params: { q } }).then(({ data }) => setResults({
-      posts: data.posts || [],
-      categories: data.categories || [],
-    }));
+    let cancelled = false;
+    setLoading(true);
+    api.get('/search', { params: { q } })
+      .then(({ data }) => {
+        if (cancelled) return;
+        setCategories(data.categories || []);
+        setPosts(data.posts || []);
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [q]);
 
   return (
-    <div className="col-md-8 mx-auto mt-3">
-      <h5>Результати пошуку: "{q}"</h5>
+    <div className="search-page">
+      <h1>Результати пошуку: «{q}»</h1>
+      {loading && <p className="feed-status">Пошук…</p>}
 
-      {results.categories?.length > 0 && (
-        <div className="mb-3">
-          <h6>Спільноти</h6>
-          {results.categories.map((s) => (
-            <Link key={s._id} to={`/r/${encodeURIComponent(s.name)}`} className="d-block">r/{s.name}</Link>
-          ))}
-        </div>
-      )}
+      {!loading && (
+        <>
+          <section>
+            <h2>Спільноти</h2>
+            {categories.length === 0 && <p className="feed-status">Нічого не знайдено.</p>}
+            <div className="search-results">
+              {categories.map((c) => (
+                <Link key={c._id} to={`/r/${encodeURIComponent(c.name)}`} className="side-link">
+                  <span className="sub-icon">{c.name[0]?.toUpperCase()}</span> r/{c.name}
+                </Link>
+              ))}
+            </div>
+          </section>
 
-      {results.posts?.length > 0 && (
-        <div>
-          <h6>Пости</h6>
-          {results.posts.map((p) => <PostCard key={p._id} post={p} />)}
-        </div>
-      )}
-
-      {!results.posts?.length && !results.categories?.length && (
-        <p className="text-secondary">Нічого не знайдено.</p>
+          <section>
+            <h2>Пости</h2>
+            {posts.length === 0 && <p className="feed-status">Нічого не знайдено.</p>}
+            <div className="search-results">
+              {posts.map((p) => (
+                <Link
+                  key={p._id}
+                  to={`/r/${encodeURIComponent(p.category?.name)}/p/${encodeURIComponent(p.title)}`}
+                  className="post-title"
+                >
+                  {p.title}
+                </Link>
+              ))}
+            </div>
+          </section>
+        </>
       )}
     </div>
   );

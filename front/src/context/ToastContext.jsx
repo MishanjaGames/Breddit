@@ -29,20 +29,11 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={{ addToast, removeToast, success, error, info }}>
       {children}
-      <div className="position-fixed bottom-0 end-0 p-3" style={{ zIndex: 9999 }}>
+      <div className="toast-stack">
         {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={`alert alert-${toast.type} mb-2 alert-dismissible fade show`}
-            role="alert"
-          >
-            {toast.message}
-            <button
-              type="button"
-              className="btn-close"
-              onClick={() => removeToast(toast.id)}
-              aria-label="Close"
-            />
+          <div key={toast.id} className={`toast toast-${toast.type}`} role="alert">
+            <span>{toast.message}</span>
+            <button type="button" className="toast-close" onClick={() => removeToast(toast.id)} aria-label="Close">✕</button>
           </div>
         ))}
       </div>

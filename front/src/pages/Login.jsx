@@ -5,55 +5,46 @@ import { useToast } from '../context/ToastContext';
 
 export default function Login() {
   const { login } = useAuth();
-  const { success, error } = useToast();
-  const [form, setForm] = useState({ email: '', password: '' });
-  const [loading, setLoading] = useState(false);
+  const toast = useToast();
   const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
   const submit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setBusy(true);
+    setError('');
     try {
-      await login(form.email, form.password);
-      success('Успішно увійшли!');
+      await login(email, password);
+      toast.success('Вхід виконано');
       navigate('/');
-    } catch (err) {
-      error(err.response?.data?.message || err.response?.data?.error || 'Помилка входу');
+    } catch {
+      setError('Невірний email або пароль');
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
   return (
-    <div className="col-md-5 col-lg-4 mx-auto mt-5">
-      <h3 className="mb-3">Увійти</h3>
-      <form onSubmit={submit}>
-        <input 
-          className="form-control mb-2" 
-          placeholder="Email або username" 
-          required
-          disabled={loading}
-          value={form.email}
-          onChange={(e) => setForm({ ...form, email: e.target.value })} 
-        />
-        <input 
-          className="form-control mb-3" 
-          type="password" 
-          placeholder="Пароль" 
-          required
-          disabled={loading}
-          value={form.password}
-          onChange={(e) => setForm({ ...form, password: e.target.value })} 
-        />
-        <button 
-          className="btn btn-primary w-100" 
-          type="submit"
-          disabled={loading}
-        >
-          {loading ? 'Завантаження...' : 'Увійти'}
+    <div className="auth-page">
+      <form className="auth-card" onSubmit={submit}>
+        <h1>Увійти</h1>
+        {error && <p className="auth-error">{error}</p>}
+        <label>
+          Email
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        </label>
+        <label>
+          Пароль
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        </label>
+        <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
+          {busy ? 'Вхід…' : 'Увійти'}
         </button>
+        <p className="auth-switch">Немає акаунта? <Link to="/register">Зареєструватися</Link></p>
       </form>
-      <p className="mt-3 small">Немає акаунту? <Link to="/register">Зареєструватись</Link></p>
     </div>
   );
 }
