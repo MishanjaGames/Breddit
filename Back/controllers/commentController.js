@@ -2,7 +2,9 @@ const Comment = require('../models/Comment');
 const Post = require('../models/Post');
 const Notification = require('../models/Notification');
 const Vote = require('../models/Vote');
+const SavedItem = require('../models/SavedItem');
 const { buildMediaArray, removeMediaFiles, parseIdsList, MAX_FILES } = require('../middleware/mediaUpload');
+const { extractMentionedNicknames, findMentionedUsers } = require('../utils/mentions');
 
 // enrich flat comment list with myVote for the current user
 const enrichComments = async (comments, userId) => {
@@ -45,15 +47,64 @@ exports.createComment = async (req, res) => {
         await comment.save();
         await comment.populate('author', 'nickname avatar');
 
-        const notifyRecipient = parentComment
+        const notifiedUserIds = new Set([author]); // себе не уведомляем
+
+        // 1) уведомление автору поста (comment_on_post) либо автору родительского комментария (reply)
+        const primaryRecipient = parentComment
             ? (await Comment.findById(parentComment)).author
             : postExists.author;
 
-        if (notifyRecipient.toString() !== author) {
+        if (!notifiedUserIds.has(primaryRecipient.toString())) {
             await Notification.create({
-                recipient: notifyRecipient,
-                message: parentComment ? 'Хтось відповів на ваш коментар' : 'Хтось прокоментував ваш пост'
+                recipient: primaryRecipient,
+                type: parentComment ? 'reply' : 'comment_on_post',
+                message: parentComment ? 'Хтось відповів на ваш коментар' : 'Хтось прокоментував ваш пост',
+                fromUser: author,
+                post,
+                comment: comment._id
             });
+            notifiedUserIds.add(primaryRecipient.toString());
+        }
+
+        // 2) уведомляем всех, кто добавил этот пост в избранное, о новой активности в теме
+        const savers = await SavedItem.find({ target: post, targetType: 'Post' }).select('user').lean();
+        const toNotify = [...new Set(savers.map((s) => s.user.toString()))]
+            .filter((userId) => !notifiedUserIds.has(userId));
+
+        if (toNotify.length > 0) {
+            await Notification.insertMany(
+                toNotify.map((userId) => ({
+                    recipient: userId,
+                    type: 'saved_post_activity',
+                    message: 'Нова активність у збереженій темі',
+                    fromUser: author,
+                    post,
+                    comment: comment._id
+                }))
+            );
+            toNotify.forEach((id) => notifiedUserIds.add(id));
+        }
+
+        // 3) уведомляем упомянутых юзеров (u/nickname или @nickname) в тексте комментария
+        const mentionedNicknames = extractMentionedNicknames(text);
+        if (mentionedNicknames.length > 0) {
+            const mentionedUsers = await findMentionedUsers(mentionedNicknames);
+            const mentionTargets = mentionedUsers
+                .map((u) => u._id.toString())
+                .filter((userId) => userId !== author && !notifiedUserIds.has(userId));
+
+            if (mentionTargets.length > 0) {
+                await Notification.insertMany(
+                    mentionTargets.map((userId) => ({
+                        recipient: userId,
+                        type: 'mention',
+                        message: 'Вас згадали в коментарі',
+                        fromUser: author,
+                        post,
+                        comment: comment._id
+                    }))
+                );
+            }
         }
 
         res.status(201).json(comment);

@@ -4,7 +4,9 @@ const Comment = require('../models/Comment');
 const Vote = require('../models/Vote');
 const SavedItem = require('../models/SavedItem');
 const Subscription = require('../models/Subscription');
+const Notification = require('../models/Notification');
 const { buildMediaArray, removeMediaFiles, parseIdsList, MAX_FILES } = require('../middleware/mediaUpload');
+const { extractMentionedNicknames, findMentionedUsers } = require('../utils/mentions');
 
 // helper: applies sort order for a mongoose query based on ?sort=
 // hot = recency-weighted score, new = createdAt, top = karma, controversial = low |karma| with activity
@@ -81,6 +83,27 @@ exports.createPost = async (req, res) => {
 
         const post = new Post({ title, description, category, author, media });
         await post.save();
+
+        // уведомляем упомянутых юзеров (u/nickname или @nickname) в заголовке/описании поста
+        const mentionedNicknames = extractMentionedNicknames(`${title} ${description}`);
+        if (mentionedNicknames.length > 0) {
+            const mentionedUsers = await findMentionedUsers(mentionedNicknames);
+            const mentionTargets = mentionedUsers
+                .map((u) => u._id.toString())
+                .filter((userId) => userId !== author);
+
+            if (mentionTargets.length > 0) {
+                await Notification.insertMany(
+                    mentionTargets.map((userId) => ({
+                        recipient: userId,
+                        type: 'mention',
+                        message: 'Вас згадали у пості',
+                        fromUser: author,
+                        post: post._id
+                    }))
+                );
+            }
+        }
 
         res.status(201).json(post);
     } catch (error) {

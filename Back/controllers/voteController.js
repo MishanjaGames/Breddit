@@ -49,7 +49,11 @@ exports.vote = async (req, res) => {
         if (value === 1 && target.author.toString() !== userId) {
             await Notification.create({
                 recipient: target.author,
-                message: targetType === 'Post' ? 'Ваш пост отримав апвоут' : 'Ваш коментар отримав апвоут'
+                type: targetType === 'Post' ? 'upvote_post' : 'upvote_comment',
+                message: targetType === 'Post' ? 'Ваш пост отримав апвоут' : 'Ваш коментар отримав апвоут',
+                fromUser: userId,
+                post: targetType === 'Post' ? targetId : target.post,
+                comment: targetType === 'Comment' ? targetId : null
             });
         }
 
