@@ -1,0 +1,60 @@
+import { Link } from 'react-router-dom';
+import VoteButtons from './VoteButtons';
+import PostMenu from './PostMenu';
+import api from '../api/client';
+import timeAgo from '../utils/timeAgo';
+import { useAuth } from '../context/AuthContext';
+import { useState } from 'react';
+
+export default function PostRowCompact({ post }) {
+  const { user } = useAuth();
+  const [saved, setSaved] = useState(!!post.isSaved);
+  const [hidden, setHidden] = useState(false);
+  const subName = post.category?.name;
+
+  const handleVote = async (value) => {
+    await api.post('/votes', { targetType: 'Post', targetId: post._id, value });
+  };
+
+  const toggleSave = async () => {
+    if (!user) return;
+    const next = !saved;
+    setSaved(next);
+    try {
+      if (next) await api.post(`/posts/${post._id}/save`);
+      else await api.delete(`/posts/${post._id}/save`);
+    } catch {
+      setSaved(!next);
+    }
+  };
+
+  if (hidden) return null;
+
+  return (
+    <article className="post-row-compact">
+      <VoteButtons vertical score={post.karma} myVote={post.myVote} onVote={handleVote} />
+      {post.thumbnail ? (
+        <img className="compact-thumb" src={post.thumbnail} alt="" />
+      ) : (
+        <div className="compact-thumb compact-thumb-placeholder">{subName?.[0]?.toUpperCase() || '?'}</div>
+      )}
+      <div className="compact-body">
+        <div className="compact-meta">
+          {subName && <Link to={`/r/${encodeURIComponent(subName)}`} className="post-sub-link">r/{subName}</Link>}
+          <span className="post-dot">·</span>
+          <span className="post-meta-text">{timeAgo(post.createdAt)}</span>
+        </div>
+        <Link to={`/r/${encodeURIComponent(subName)}/p/${encodeURIComponent(post.title)}`} className="compact-title">
+          {post.title}
+        </Link>
+        <div className="compact-actions">
+          <Link to={`/r/${encodeURIComponent(subName)}/p/${encodeURIComponent(post.title)}`} className="post-action-btn">
+            💬 {post.commentCount ?? 0}
+          </Link>
+          <button className="post-action-btn">↗ Поширити</button>
+          <PostMenu saved={saved} onSave={toggleSave} onHide={() => setHidden(true)} />
+        </div>
+      </div>
+    </article>
+  );
+}

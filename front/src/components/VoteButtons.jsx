@@ -3,7 +3,7 @@ import { useState } from 'react';
 // backend POST /api/votes body: { targetType, targetId, value: 1 | -1 }
 // response is only { success, message } - no updated score/vote is echoed back,
 // so we manage score/myVote optimistically on the client only.
-export default function VoteButtons({ score: initialScore, myVote: initialVote, onVote }) {
+export default function VoteButtons({ score: initialScore, myVote: initialVote, onVote, vertical }) {
   const [score, setScore] = useState(initialScore || 0);
   const [myVote, setMyVote] = useState(initialVote || null);
 
@@ -24,7 +24,7 @@ export default function VoteButtons({ score: initialScore, myVote: initialVote, 
   };
 
   return (
-    <div className="vote-pill">
+    <div className={`vote-pill ${vertical ? 'vote-pill-vertical' : ''}`}>
       <button className={`vote-btn up ${myVote === 1 ? 'active' : ''}`} onClick={() => vote(1)} aria-label="Upvote">▲</button>
       <span className="vote-score">{score}</span>
       <button className={`vote-btn down ${myVote === -1 ? 'active' : ''}`} onClick={() => vote(-1)} aria-label="Downvote">▼</button>
