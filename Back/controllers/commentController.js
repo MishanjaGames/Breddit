@@ -2,6 +2,7 @@ const Comment = require('../models/Comment');
 const Post = require('../models/Post');
 const Notification = require('../models/Notification');
 const Vote = require('../models/Vote');
+const { buildMediaArray, removeMediaFiles, parseIdsList, MAX_FILES } = require('../middleware/mediaUpload');
 
 // enrich flat comment list with myVote for the current user
 const enrichComments = async (comments, userId) => {
@@ -37,7 +38,8 @@ exports.createComment = async (req, res) => {
             text,
             author,
             post,
-            parentComment: parentComment || null
+            parentComment: parentComment || null,
+            media: buildMediaArray(req.files)
         });
 
         await comment.save();
@@ -100,7 +102,7 @@ exports.getCommentById = async (req, res) => {
 // UPDATE - обновить комментарий
 exports.updateComment = async (req, res) => {
     try {
-        const { text } = req.body;
+        const { text, removeMediaIds } = req.body;
 
         const comment = await Comment.findById(req.params.id);
         if (!comment || comment.isDeleted) {
@@ -112,6 +114,25 @@ exports.updateComment = async (req, res) => {
         }
 
         comment.text = text || comment.text;
+
+        // удаляем выбранные медиа-вложения (removeMediaIds — id элементов media, JSON-массив или CSV)
+        const idsToRemove = parseIdsList(removeMediaIds);
+        if (idsToRemove.length > 0) {
+            const toDelete = comment.media.filter((m) => idsToRemove.includes(m._id.toString()));
+            removeMediaFiles(toDelete);
+            comment.media = comment.media.filter((m) => !idsToRemove.includes(m._id.toString()));
+        }
+
+        // добавляем новые загруженные файлы
+        const newMedia = buildMediaArray(req.files);
+        if (newMedia.length > 0) {
+            if (comment.media.length + newMedia.length > MAX_FILES) {
+                removeMediaFiles(buildMediaArray(req.files));
+                return res.status(400).json({ message: `Максимум ${MAX_FILES} медіафайлів на коментар` });
+            }
+            comment.media.push(...newMedia);
+        }
+
         await comment.save();
 
         res.status(200).json(comment);
@@ -132,8 +153,11 @@ exports.deleteComment = async (req, res) => {
             return res.status(403).json({ message: 'Нет прав на удаление этого комментария' });
         }
 
+        removeMediaFiles(comment.media);
+
         comment.isDeleted = true;
         comment.text = '[удалено]';
+        comment.media = [];
         await comment.save();
 
         res.status(200).json({ message: 'Комментарий удалён' });

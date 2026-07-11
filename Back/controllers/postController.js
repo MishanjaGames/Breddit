@@ -4,6 +4,7 @@ const Comment = require('../models/Comment');
 const Vote = require('../models/Vote');
 const SavedItem = require('../models/SavedItem');
 const Subscription = require('../models/Subscription');
+const { buildMediaArray, removeMediaFiles, parseIdsList, MAX_FILES } = require('../middleware/mediaUpload');
 
 // helper: applies sort order for a mongoose query based on ?sort=
 // hot = recency-weighted score, new = createdAt, top = karma, controversial = low |karma| with activity
@@ -76,7 +77,9 @@ exports.createPost = async (req, res) => {
             return res.status(404).json({ message: 'Категория не найдена' });
         }
 
-        const post = new Post({ title, description, category, author });
+        const media = buildMediaArray(req.files);
+
+        const post = new Post({ title, description, category, author, media });
         await post.save();
 
         res.status(201).json(post);
@@ -190,7 +193,7 @@ exports.getPostById = async (req, res) => {
 // UPDATE - обновить пост
 exports.updatePost = async (req, res) => {
     try {
-        const { title, description, category } = req.body;
+        const { title, description, category, removeMediaIds } = req.body;
 
         const post = await Post.findById(req.params.id);
         if (!post) {
@@ -204,6 +207,24 @@ exports.updatePost = async (req, res) => {
         post.title = title || post.title;
         post.description = description || post.description;
         post.category = category || post.category;
+
+        // удаляем выбранные медиа-вложения (removeMediaIds — id элементов media, JSON-массив или CSV)
+        const idsToRemove = parseIdsList(removeMediaIds);
+        if (idsToRemove.length > 0) {
+            const toDelete = post.media.filter((m) => idsToRemove.includes(m._id.toString()));
+            removeMediaFiles(toDelete);
+            post.media = post.media.filter((m) => !idsToRemove.includes(m._id.toString()));
+        }
+
+        // добавляем новые загруженные файлы
+        const newMedia = buildMediaArray(req.files);
+        if (newMedia.length > 0) {
+            if (post.media.length + newMedia.length > MAX_FILES) {
+                removeMediaFiles(buildMediaArray(req.files)); // подчищаем уже сохранённые на диск файлы
+                return res.status(400).json({ message: `Максимум ${MAX_FILES} медіафайлів на пост` });
+            }
+            post.media.push(...newMedia);
+        }
 
         await post.save();
 
@@ -225,6 +246,7 @@ exports.deletePost = async (req, res) => {
             return res.status(403).json({ message: 'Нет прав на удаление этого поста' });
         }
 
+        removeMediaFiles(post.media);
         await Post.findByIdAndDelete(req.params.id);
 
         res.status(200).json({ message: 'Пост удалён' });

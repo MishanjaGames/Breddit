@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect, optionalAuth } = require('../middleware/authMiddleware');
 const { validatePost } = require('../middleware/validate');
+const { uploadMedia } = require('../middleware/mediaUpload');
 const postController = require('../controllers/postController');
 
 // Публичные роуты (персоналізовані якщо є токен: myVote, isSaved, feed=home)
@@ -11,8 +12,9 @@ router.get('/category/:categoryId', optionalAuth, postController.getPostsByCateg
 router.get('/:id', optionalAuth, postController.getPostById);
 
 // Защищённые роуты
-router.post('/', protect, validatePost, postController.createPost);
-router.put('/:id', protect, postController.updatePost);
+// uploadMedia стоит ДО validatePost: multer парсит multipart/form-data и кладёт текстовые поля в req.body
+router.post('/', protect, uploadMedia, validatePost, postController.createPost);
+router.put('/:id', protect, uploadMedia, postController.updatePost);
 router.delete('/:id', protect, postController.deletePost);
 router.post('/:id/save', protect, postController.savePost);
 router.delete('/:id/save', protect, postController.unsavePost);

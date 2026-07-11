@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
+const mediaItemSchema = new Schema({
+    url: { type: String, required: true },
+    type: { type: String, enum: ['image', 'gif', 'video', 'audio', 'other'], required: true },
+    mimeType: { type: String },
+    size: { type: Number }
+}, { _id: true });
+
 const postSchema = new Schema({
     title: {
         type: String,
@@ -11,6 +18,10 @@ const postSchema = new Schema({
     description: {
         type: String,
         required: true
+    },
+    media: {
+        type: [mediaItemSchema],
+        default: []
     },
     category: {
         type: Schema.Types.ObjectId,
