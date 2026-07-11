@@ -416,22 +416,6 @@ input, textarea { font-family: inherit; }
 .vote-score { font-weight: 700; min-width: 16px; text-align: center; }
 
 /* ---------- Community page ---------- */
-.community-header-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 16px;
-  margin-top: -20px;
-  flex-wrap: wrap;
-}
-.community-header-row h1 { font-size: 20px; margin: 0; display: flex; align-items: center; gap: 8px; }
-.community-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-  flex-wrap: wrap;
-}
 .community-desc { color: var(--text-muted); padding: 0 16px; margin: 8px 0 16px; }
 .community-body { display: flex; gap: 24px; }
 .community-side { width: 300px; flex-shrink: 0; display: none; }
@@ -525,9 +509,156 @@ input, textarea { font-family: inherit; }
   border-radius: var(--radius);
   padding: 10px 14px;
 }
-.comment-head { display: flex; gap: 8px; font-size: 12px; margin-bottom: 4px; }
+.comment-head { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 4px; }
 .comment-author { font-weight: 700; }
-.comment-text { margin: 0; line-height: 1.4; }
+.comment-author:hover { text-decoration: underline; }
+.comment-text { margin: 0 0 8px; line-height: 1.4; white-space: pre-wrap; }
+
+/* ---------- Author role badges (OP / MOD) ---------- */
+.author-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  line-height: 1.5;
+}
+.author-badge-op {
+  color: #fff;
+  background: var(--blue);
+}
+.author-badge-mod {
+  color: #fff;
+  background: #46d160;
+}
+
+/* ---------- Pinned post ---------- */
+.post-card-pinned {
+  border-color: #46d160;
+}
+.pinned-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #46d160;
+}
+
+/* ---------- Threaded comments ---------- */
+.comment-list-threaded { gap: 0; }
+.comment-node { position: relative; }
+.comment-node + .comment-node { margin-top: 10px; }
+.comment-collapse {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 0 2px 0 0;
+  font-family: monospace;
+}
+.comment-collapse:hover { color: var(--text); }
+
+.comment-actions { display: flex; align-items: center; gap: 6px; }
+.vote-pill-mini { padding: 2px 6px; }
+.comment-action-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+.comment-action-btn:hover { background: var(--border); color: var(--text); }
+
+.comment-reply-form { margin-top: 8px; padding: 8px; }
+.comment-reply-form textarea { min-height: 56px; }
+.comment-reply-form-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+.comment-replies {
+  margin-top: 10px;
+  padding-left: 16px;
+  border-left: 2px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---------- Comment sort/search toolbar ---------- */
+.comment-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.comment-sort-label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.comment-sort-select {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.comment-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 12px;
+  flex: 1;
+  max-width: 260px;
+}
+.comment-search input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 12px;
+}
+
+/* ---------- Community highlights widget ---------- */
+.community-highlights {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.highlight-card {
+  flex: 1;
+  min-width: 160px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.highlight-card-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.highlight-card-title { font-size: 13px; font-weight: 700; line-height: 1.3; }
+.highlight-card-meta { font-size: 11px; color: var(--text-muted); }
+.highlight-card-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #46d160;
+  display: inline-block;
+}
 
 /* ---------- Search ---------- */
 .search-page { max-width: 720px; }
@@ -1050,9 +1181,10 @@ input, textarea { font-family: inherit; }
 .user-menu-divider { height: 1px; background: var(--border); margin: 6px 4px; }
 
 /* ---------- Community avatar/banner edit affordances ---------- */
+.community-header { margin-bottom: 4px; }
 .community-banner {
   position: relative;
-  height: 80px;
+  height: 128px;
   border-radius: var(--radius) var(--radius) 0 0;
   background: linear-gradient(120deg, #ff4500, #0079d3);
   background-size: cover;
@@ -1074,10 +1206,37 @@ input, textarea { font-family: inherit; }
 .community-edit-fab:hover { background: var(--border); }
 .banner-edit-fab { bottom: 10px; right: 10px; }
 
-.community-avatar-wrap { position: relative; flex-shrink: 0; }
+.community-header-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 0 16px;
+  margin-top: -32px;
+  flex-wrap: wrap;
+}
+.community-header-row h1 { font-size: 20px; margin: 0; display: flex; align-items: center; gap: 8px; }
+.community-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.community-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 4px solid var(--bg);
+  background: var(--bg);
+}
+.community-avatar-wrap .sub-icon.large { width: 100%; height: 100%; }
 .avatar-edit-fab { bottom: -2px; right: -2px; width: 24px; height: 24px; font-size: 11px; }
 
-.community-title-block { display: flex; flex-direction: column; gap: 2px; }
+.community-title-block { display: flex; flex-direction: column; gap: 2px; padding-top: 12px; }
 .community-title-block h1 { display: flex; align-items: center; gap: 8px; }
 .community-edit-inline {
   background: none;
@@ -1088,6 +1247,7 @@ input, textarea { font-family: inherit; }
   border-radius: 4px;
 }
 .community-edit-inline:hover { color: var(--text); background: var(--border); }
+.community-desc .community-edit-inline { margin-left: 6px; vertical-align: middle; }
 
 .community-status-tag {
   display: inline-flex;

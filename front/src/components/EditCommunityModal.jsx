@@ -10,7 +10,7 @@ const STATUS_OPTIONS = [
 ];
 
 export default function EditCommunityModal({ category, initialTarget, onClose, onSaved }) {
-  const [tab, setTab] = useState(initialTarget || 'name');
+  const [tab, setTab] = useState(initialTarget === 'description' ? 'name' : (initialTarget || 'name'));
   const [name, setName] = useState(category.name || '');
   const [description, setDescription] = useState(category.description || '');
   const [status, setStatus] = useState(category.status || '');

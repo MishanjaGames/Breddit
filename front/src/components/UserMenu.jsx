@@ -34,57 +34,27 @@ export default function UserMenu({ modOn, onToggleMod }) {
             <span>View Profile<br /><span className="user-menu-sub">u/{user.nickname}</span></span>
           </Link>
 
-          <button className="user-menu-item" onClick={() => setOpen(false)}>
-            <span className="user-menu-icon">🧥</span> Edit Avatar
-          </button>
+          <Link to={`/user/${user.nickname}`} className="user-menu-item user-menu-item-primary" onClick={() => setOpen(false)}>
+            <span className="user-menu-icon">🧥</span> View Profile
+          </Link>
+
           <button className="user-menu-item" onClick={() => setOpen(false)}>
             <span className="user-menu-icon">📝</span> Drafts
           </button>
-          <button className="user-menu-item" onClick={() => setOpen(false)}>
-            <span className="user-menu-icon">🏆</span>
-            <span>Achievements<br /><span className="user-menu-sub">{user.achievements ?? 0} unlocked</span></span>
-          </button>
-          <button className="user-menu-item" onClick={() => setOpen(false)}>
-            <span className="user-menu-icon">💲</span>
-            <span>Earn<br /><span className="user-menu-sub">Earn cash on Reddit</span></span>
-          </button>
-          <button className="user-menu-item" onClick={() => setOpen(false)}>
-            <span className="user-menu-icon">⊕</span> Premium
-          </button>
 
-          <div className="user-menu-toggle-row">
-            <span className="user-menu-icon">🛡</span>
-            <span className="user-menu-toggle-label">Mod Mode</span>
-            <button
-              className={`user-menu-switch ${modOn ? 'on' : ''}`}
-              onClick={() => onToggleMod?.(!modOn)}
-              role="switch"
-              aria-checked={modOn}
-              aria-label="Mod Mode"
-            >
-              <span className="user-menu-switch-knob" />
-            </button>
-          </div>
-
-          <div className="user-menu-toggle-row">
+          <button className="user-menu-item" onClick={() => setOpen(true)}>
             <span className="user-menu-icon">◐</span>
             <span className="user-menu-toggle-label">Display Mode</span>
-          </div>
+          </button>
 
-          <button className="user-menu-item" onClick={() => { setOpen(false); logout(); }}>
-            <span className="user-menu-icon">⎋</span> Log Out
+          <button className="user-menu-item" onClick={() => setOpen(false)}>
+            <span className="user-menu-icon">⚙</span> Settings
           </button>
 
           <div className="user-menu-divider" />
 
-          <button className="user-menu-item" onClick={() => setOpen(false)}>
-            <span className="user-menu-icon">✳</span> Advertise on Reddit
-          </button>
-          <button className="user-menu-item" onClick={() => setOpen(false)}>
-            <span className="user-menu-icon">🕒</span> Try Reddit Pro <span className="beta-tag">BETA</span>
-          </button>
-          <button className="user-menu-item" onClick={() => setOpen(false)}>
-            <span className="user-menu-icon">⚙</span> Settings
+          <button className="user-menu-item" onClick={() => { setOpen(false); logout(); }}>
+            <span className="user-menu-icon">⎋</span> Log Out
           </button>
         </div>
       )}

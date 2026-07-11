@@ -159,11 +159,33 @@ export default function Community() {
             )}
           </div>
         </div>
-        {category.description && <p className="community-desc">{category.description}</p>}
+        {(category.description || isOwner) && (
+          <p className="community-desc">
+            {category.description || 'Опис відсутній.'}
+            {isOwner && (
+              <button className="community-edit-inline" onClick={() => openEdit('description')} title="Редагувати опис">✎</button>
+            )}
+          </p>
+        )}
       </header>
 
       <div className="community-body">
         <div className="feed-content">
+          {category.highlights?.length > 0 && (
+            <div className="community-highlights">
+              {category.highlights.map((h, i) => (
+                <Link key={i} to={h.link || '#'} className="highlight-card">
+                  <span className="highlight-card-tag">{h.tag || 'Announcement'}</span>
+                  <span className="highlight-card-title">{h.title}</span>
+                  <span className="highlight-card-meta">
+                    {h.votes != null && `${h.votes} votes`}
+                    {h.votes != null && h.comments != null && ' · '}
+                    {h.comments != null && `${h.comments} comments`}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
           <PostListControls sort={sort} onSortChange={setSort} view={view} onViewChange={setView2} />
           <div className={view === 'compact' ? 'post-list post-list-compact' : 'post-list'}>
             {posts.length === 0 && <p className="feed-status">У цій спільноті ще немає постів.</p>}
