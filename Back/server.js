@@ -4,6 +4,7 @@ const mongoose = require('mongoose')
 const passport = require('passport')
 const morgan = require('morgan')
 const cors = require('cors')
+const path = require('path')
 
 const keys = require('./config/keys')
 
@@ -13,6 +14,9 @@ app.use(cors({
   origin: 'http://localhost:3000',
   credentials: true
 }))
+
+// раздаёт загруженные файлы (аватарки и т.п.) по /uploads/...
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
 mongoose.connect(keys.mongoUrl, { dbName: 'Breddit' })
     .then(() => console.log('MongoDB connected'))

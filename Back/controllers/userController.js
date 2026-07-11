@@ -1,6 +1,19 @@
+const path = require('path');
+const fs = require('fs');
+
 const User = require('../models/User');
 const Post = require('../models/Post');
 const Comment = require('../models/Comment');
+
+const DEFAULT_AVATAR = 'default-avatar.png';
+const AVATARS_DIR = path.join(__dirname, '..', 'uploads');
+
+// удаляет файл предыдущей аватарки, если это не дефолтная картинка
+const removeOldAvatar = (avatar) => {
+    if (!avatar || avatar === DEFAULT_AVATAR) return;
+    const oldPath = path.join(AVATARS_DIR, avatar);
+    fs.unlink(oldPath, () => {}); // не критично, если файла уже нет
+};
 
 // GET /api/users/:nickname -> { user }
 exports.getByNickname = async (req, res) => {
@@ -31,6 +44,52 @@ exports.getByNickname = async (req, res) => {
                 createdAt: user.createdAt
             }
         });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// PUT /api/users/me/avatar -> загрузить/заменить аватарку текущего юзера
+exports.updateAvatar = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'Файл не загружен' });
+        }
+
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Пользователь не найден' });
+        }
+
+        removeOldAvatar(user.avatar);
+
+        user.avatar = `avatars/${req.file.filename}`;
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            avatar: user.avatar,
+            avatarUrl: `/uploads/${user.avatar}`
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// DELETE /api/users/me/avatar -> сбросить аватарку на дефолтную
+exports.deleteAvatar = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Пользователь не найден' });
+        }
+
+        removeOldAvatar(user.avatar);
+
+        user.avatar = DEFAULT_AVATAR;
+        await user.save();
+
+        res.status(200).json({ success: true, avatar: user.avatar });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
