@@ -45,6 +45,10 @@ export default function UserMenu({ modOn, onToggleMod }) {
             <span>View Profile<br /><span className="user-menu-sub">u/{user.nickname}</span></span>
           </Link>
 
+          <Link to="/drafts" className="user-menu-item" onClick={() => setOpen(false)}>
+            <span className="user-menu-icon">📝</span> Drafts
+          </Link>
+
           <button className="user-menu-item" onClick={() => { setOpen(false); logout(); }}>
             <span className="user-menu-icon">⎋</span> Log Out
           </button>

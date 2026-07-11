@@ -13,6 +13,7 @@ import Search from './pages/Search';
 import SubmitPost from './pages/SubmitPost';
 import Profile from './pages/Profile';
 import Notifications from './pages/Notifications';
+import Drafts from './pages/Drafts';
 
 export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -24,7 +25,10 @@ export default function App() {
         <Sidebar collapsed={sidebarCollapsed} onToggleSidebar={() => setSidebarCollapsed((c) => !c)} />
         <main className="app-main">
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<Home mode="best" />} />
+            <Route path="/popular" element={<Home mode="popular" />} />
+            <Route path="/news" element={<Home mode="news" />} />
+            <Route path="/drafts" element={<Drafts />} />
             <Route path="/explore" element={<Explore />} />
             <Route path="/communities/manage" element={<ManageCommunities />} />
             <Route path="/search" element={<Search />} />

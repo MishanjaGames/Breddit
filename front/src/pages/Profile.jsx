@@ -8,6 +8,13 @@ import { useToast } from '../context/ToastContext';
 
 const TABS = ['Пости', 'Про акаунт'];
 
+function formatAge(dateStr) {
+  const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+  if (days < 30) return `${days} дн.`;
+  if (days < 365) return `${Math.floor(days / 30)} міс.`;
+  return `${Math.floor(days / 365)} р.`;
+}
+
 export default function Profile() {
   const { nickname } = useParams();
   const { user, setUser } = useAuth();
@@ -108,6 +115,7 @@ export default function Profile() {
 
   const avatarSrc = mediaUrl(profile.avatar);
   const totalKarma = (profile.postKarma ?? 0) + (profile.commentKarma ?? 0);
+  const accountAge = profile.createdAt ? formatAge(profile.createdAt) : null;
 
   return (
     <div className="profile-page">
@@ -232,6 +240,12 @@ export default function Profile() {
               <strong>{profile.followingCount ?? 0}</strong>
               <span>Підписки</span>
             </div>
+            {accountAge && (
+              <div>
+                <strong>{accountAge}</strong>
+                <span>Вік акаунта</span>
+              </div>
+            )}
           </div>
         </div>
       </aside>

@@ -815,6 +815,7 @@ input, textarea { font-family: inherit; }
   display: flex;
   gap: 20px;
   margin: 12px 0;
+  flex-wrap: wrap;
 }
 .profile-stats > div { display: flex; flex-direction: column; }
 .profile-stats strong { font-size: 16px; }

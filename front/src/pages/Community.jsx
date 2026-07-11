@@ -90,6 +90,43 @@ export default function Community() {
 
   const toggleRule = (i) => setRulesOpen((o) => ({ ...o, [i]: !o[i] }));
 
+  const addRule = async () => {
+    const title = window.prompt('Назва правила (до 100 символів):');
+    if (!title || !title.trim()) return;
+    const body = window.prompt('Опис правила (необов\'язково):') || '';
+    const nextRules = [...(category.rules || []), { title: title.trim(), body: body.trim() }];
+    try {
+      const { data } = await api.put(`/categories/${category._id}`, {
+        name: category.name,
+        description: category.description,
+        icon: category.icon,
+        banner: category.banner,
+        rules: nextRules,
+      });
+      setCategory((prev) => ({ ...prev, rules: data.rules }));
+      toast.success('Правило додано');
+    } catch {
+      toast.error('Не вдалося додати правило');
+    }
+  };
+
+  const removeRule = async (index) => {
+    const nextRules = (category.rules || []).filter((_, i) => i !== index);
+    try {
+      const { data } = await api.put(`/categories/${category._id}`, {
+        name: category.name,
+        description: category.description,
+        icon: category.icon,
+        banner: category.banner,
+        rules: nextRules,
+      });
+      setCategory((prev) => ({ ...prev, rules: data.rules }));
+      toast.success('Правило видалено');
+    } catch {
+      toast.error('Не вдалося видалити правило');
+    }
+  };
+
   if (loading) return <p className="feed-status">Завантаження…</p>;
   if (!category) return <p className="feed-status">Спільноту r/{name} не знайдено.</p>;
 
@@ -154,6 +191,11 @@ export default function Community() {
                 + Створити пост
               </Link>
             )}
+            {isOwner && (
+              <button className="btn btn-outline btn-sm" onClick={() => openEdit('name')}>
+                🛠 Mod Tools
+              </button>
+            )}
           </div>
         </div>
         {(category.description || isOwner) && (
@@ -209,18 +251,25 @@ export default function Community() {
             )}
           </div>
 
-          {rules.length > 0 && (
+          {(rules.length > 0 || isOwner) && (
             <div className="side-card">
               <div className="side-card-head-row">
                 <h3>r/{category.name} RULES</h3>
+                {isOwner && <button className="icon-btn" onClick={addRule} title="Додати правило">➕</button>}
               </div>
+              {rules.length === 0 && <p className="side-empty">Правил ще немає.</p>}
               <ol className="rules-list rules-list-collapsible">
                 {rules.map((r, i) => (
                   <li key={i}>
-                    <button className="rule-toggle" onClick={() => toggleRule(i)}>
-                      <span>{i + 1}&nbsp;&nbsp;{r.title || r}</span>
-                      <span className={`chevron ${rulesOpen[i] ? 'open' : ''}`}>˅</span>
-                    </button>
+                    <div className="rule-row">
+                      <button className="rule-toggle" onClick={() => toggleRule(i)}>
+                        <span>{i + 1}&nbsp;&nbsp;{r.title || r}</span>
+                        <span className={`chevron ${rulesOpen[i] ? 'open' : ''}`}>˅</span>
+                      </button>
+                      {isOwner && (
+                        <button className="icon-btn rule-remove" onClick={() => removeRule(i)} title="Видалити правило">🗑</button>
+                      )}
+                    </div>
                     {rulesOpen[i] && r.body && <p className="rule-body">{r.body}</p>}
                   </li>
                 ))}
@@ -230,14 +279,22 @@ export default function Community() {
 
           {category.creator && (
             <div className="side-card">
-              <h3>CREATOR</h3>
-              <Link
-                to={`/user/${category.creator.nickname || category.creator}`}
-                className="mod-row"
+              <h3>MODERATORS</h3>
+              <button
+                className="side-link static full-width"
+                onClick={() => toast.info('Повідомлення модераторам поки не підтримується')}
               >
-                <span className="avatar-dot small">{(category.creator.nickname || '?')[0]?.toUpperCase()}</span>
-                u/{category.creator.nickname || category.creator}
-              </Link>
+                ✉ Message Mods
+              </button>
+              <div className="mod-list">
+                <Link
+                  to={`/user/${category.creator.nickname || category.creator}`}
+                  className="mod-row"
+                >
+                  <span className="avatar-dot small">{(category.creator.nickname || '?')[0]?.toUpperCase()}</span>
+                  u/{category.creator.nickname || category.creator}
+                </Link>
+              </div>
             </div>
           )}
         </aside>

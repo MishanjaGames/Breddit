@@ -15,26 +15,30 @@ export default function PostListControls({ sort, onSortChange, view, onViewChang
 
   return (
     <div className="feed-controls">
-      <div className="sort-dropdown" ref={ref}>
-        <button className={`sort-trigger ${sortOpen ? 'open' : ''}`} onClick={() => setSortOpen((o) => !o)}>
-          {SORTS[sort] || SORTS.best} <span className="sort-trigger-caret">˅</span>
-        </button>
-        {sortOpen && (
-          <div className="sort-menu">
-            <span className="sort-menu-label">Sort by</span>
-            {Object.entries(SORTS).map(([key, label]) => (
-              <button
-                key={key}
-                className={`sort-menu-item ${sort === key ? 'active' : ''}`}
-                onClick={() => { onSortChange(key); setSortOpen(false); }}
-              >
-                {label}
-                {sort === key && <span className="sort-menu-check">✓</span>}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      {onSortChange ? (
+        <div className="sort-dropdown" ref={ref}>
+          <button className={`sort-trigger ${sortOpen ? 'open' : ''}`} onClick={() => setSortOpen((o) => !o)}>
+            {SORTS[sort] || SORTS.hot} <span className="sort-trigger-caret">˅</span>
+          </button>
+          {sortOpen && (
+            <div className="sort-menu">
+              <span className="sort-menu-label">Sort by</span>
+              {Object.entries(SORTS).map(([key, label]) => (
+                <button
+                  key={key}
+                  className={`sort-menu-item ${sort === key ? 'active' : ''}`}
+                  onClick={() => { onSortChange(key); setSortOpen(false); }}
+                >
+                  {label}
+                  {sort === key && <span className="sort-menu-check">✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <span className="sort-trigger sort-trigger-static">{SORTS[sort] || SORTS.hot}</span>
+      )}
 
       {onViewChange && (
         <div className="view-toggle">

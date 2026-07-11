@@ -40,18 +40,23 @@ export default function Sidebar({ collapsed, onToggleSidebar }) {
         <button className="hamburger-btn" onClick={onToggleSidebar} aria-label="Згорнути меню">☰</button>
       </div>
       <div className="side-nav-scroll">
-        <NavLink to="/" className="side-link">
+        <NavLink to="/" end className={({ isActive }) => `side-link ${isActive ? 'active' : ''}`}>
           <span className="side-icon">🏠</span> Головна
         </NavLink>
-        <NavLink to="/?tab=popular" className="side-link">
+        <NavLink to="/popular" className={({ isActive }) => `side-link ${isActive ? 'active' : ''}`}>
           <span className="side-icon">🔥</span> Популярне
         </NavLink>
-        <NavLink to="/?tab=news" className="side-link">
+        <NavLink to="/news" className={({ isActive }) => `side-link ${isActive ? 'active' : ''}`}>
           <span className="side-icon">📰</span> Новини
         </NavLink>
-        <NavLink to="/explore" className="side-link">
+        <NavLink to="/explore" className={({ isActive }) => `side-link ${isActive ? 'active' : ''}`}>
           <span className="side-icon">🧭</span> Огляд
         </NavLink>
+        {user && (
+          <NavLink to="/drafts" className={({ isActive }) => `side-link ${isActive ? 'active' : ''}`}>
+            <span className="side-icon">📝</span> Чернетки
+          </NavLink>
+        )}
         <button type="button" className="side-link full-width" onClick={openCreateCommunity}>
           <span className="side-icon">＋</span> Створити спільноту
         </button>
