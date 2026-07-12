@@ -6,6 +6,7 @@ const Vote = require('../models/Vote');
 const SavedItem = require('../models/SavedItem');
 const { buildMediaArray, removeMediaFiles, parseIdsList, MAX_FILES } = require('../middleware/mediaUpload');
 const { extractMentionedNicknames, findMentionedUsers } = require('../utils/mentions');
+const { emitToUser, emitToPost, emitToCategory } = require('../utils/socket');
 
 // enrich flat comment list with myVote for the current user
 const enrichComments = async (comments, userId) => {
@@ -72,6 +73,7 @@ exports.createComment = async (req, res) => {
                 comment: comment._id
             });
             notifiedUserIds.add(primaryRecipient.toString());
+            emitToUser(primaryRecipient.toString(), 'notification:new', { type: parentComment ? 'reply' : 'comment_on_post' });
         }
 
         // 2) уведомляем всех, кто добавил этот пост в избранное, о новой активности в теме
@@ -91,6 +93,7 @@ exports.createComment = async (req, res) => {
                 }))
             );
             toNotify.forEach((id) => notifiedUserIds.add(id));
+            toNotify.forEach((id) => emitToUser(id, 'notification:new', { type: 'saved_post_activity' }));
         }
 
         // 3) уведомляем упомянутых юзеров (u/nickname или @nickname) в тексте комментария
@@ -112,8 +115,14 @@ exports.createComment = async (req, res) => {
                         comment: comment._id
                     }))
                 );
+                mentionTargets.forEach((id) => emitToUser(id, 'notification:new', { type: 'mention' }));
             }
         }
+
+        // broadcast the new comment to anyone currently viewing this post/category, so their
+        // comment thread updates live instead of needing a manual refresh or GET poll
+        emitToPost(post.toString(), 'comment:new', { comment });
+        emitToCategory(postExists.category?.toString(), 'comment:new', { postId: post.toString() });
 
         res.status(201).json(comment);
     } catch (error) {
@@ -127,7 +136,9 @@ exports.getCommentsByPost = async (req, res) => {
         const limit = Math.min(parseInt(req.query.limit) || 200, 500);
         const userId = req.user?.id;
 
-        const filter = { post: req.params.postId, isDeleted: false };
+        // Deleted comments are kept (with text/media scrubbed) rather than excluded, so that any
+        // replies underneath them aren't orphaned when the tree is rebuilt client-side.
+        const filter = { post: req.params.postId };
         // муті-приховані коментарі бачить лише сам автор; для інших виключаємо їх зі стрічки
         if (userId) {
             filter.$or = [{ isHiddenByModeration: false }, { author: userId }];
@@ -243,7 +254,7 @@ exports.updateComment = async (req, res) => {
     }
 };
 
-// DELETE - "мягкое" удаление комментария
+// DELETE - "мягкое" удаление комментария (владелец коментаря АБО модератор спільноти поста)
 exports.deleteComment = async (req, res) => {
     try {
         const comment = await Comment.findById(req.params.id);
@@ -251,7 +262,20 @@ exports.deleteComment = async (req, res) => {
             return res.status(404).json({ message: 'Комментарий не найден' });
         }
 
-        if (comment.author.toString() !== req.user.id) {
+        const isOwner = comment.author.toString() === req.user.id;
+        let isModerator = false;
+        if (!isOwner) {
+            const post = await Post.findById(comment.post).select('category').lean();
+            if (post) {
+                const category = await Category.findById(post.category).select('creator moderators').lean();
+                if (category) {
+                    const { canModerate } = require('./categoryController');
+                    isModerator = canModerate(category, req.user.id);
+                }
+            }
+        }
+
+        if (!isOwner && !isModerator) {
             return res.status(403).json({ message: 'Нет прав на удаление этого комментария' });
         }
 

@@ -40,7 +40,7 @@ exports.getAllCategories = async (req, res) => {
             if (tags.length > 0) filter.tags = { $in: tags };
         }
 
-        const categories = await Category.find(filter).sort({ subscriberCount: -1, createdAt: -1 }).lean();
+        const categories = await Category.find(filter).sort({ subscriberCount: -1, createdAt: -1 }).populate('creator', 'nickname avatar').lean();
 
         if (req.user) {
             const subs = await Subscription.find({ user: req.user.id }).select('category').lean();
@@ -57,7 +57,7 @@ exports.getAllCategories = async (req, res) => {
 // READ - получить одну категорию по ID
 exports.getCategoryById = async (req, res) => {
     try {
-        const category = await Category.findById(req.params.id).lean();
+        const category = await Category.findById(req.params.id).populate('creator', 'nickname avatar').lean();
         if (!category) {
             return res.status(404).json({ message: 'Категория не найдена' });
         }
@@ -90,7 +90,7 @@ exports.updateCategory = async (req, res) => {
             req.params.id,
             { name, description, icon, banner, rules, status, tags, requiresApproval },
             { new: true, runValidators: true }
-        );
+        ).populate('creator', 'nickname avatar');
 
         res.status(200).json(category);
     } catch (error) {
@@ -167,7 +167,7 @@ exports.unsubscribe = async (req, res) => {
 // GET /api/categories/mine/subscribed - список спільнот, на які підписаний юзер
 exports.getMySubscriptions = async (req, res) => {
     try {
-        const subs = await Subscription.find({ user: req.user.id }).populate('category');
+        const subs = await Subscription.find({ user: req.user.id }).populate({ path: 'category', populate: { path: 'creator', select: 'nickname avatar' } });
         res.status(200).json(subs.map((s) => s.category).filter(Boolean));
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -178,6 +178,30 @@ exports.getMySubscriptions = async (req, res) => {
 const canModerate = (category, userId) => {
     if (category.creator && category.creator.toString() === userId) return true;
     return (category.moderators || []).some((id) => id.toString() === userId);
+};
+
+// GET /api/categories/:id/moderation-lists - список забанених/замучених/модераторів з нікнеймами (не тільки id)
+exports.getModerationLists = async (req, res) => {
+    try {
+        const category = await Category.findById(req.params.id)
+            .populate('bannedUsers', 'nickname avatar')
+            .populate('mutedUsers', 'nickname avatar')
+            .populate('moderators', 'nickname avatar')
+            .lean();
+        if (!category) return res.status(404).json({ success: false, message: 'Категория не найдена' });
+        if (!canModerate(category, req.user.id)) {
+            return res.status(403).json({ success: false, message: 'Немає прав модератора' });
+        }
+
+        res.status(200).json({
+            success: true,
+            bannedUsers: category.bannedUsers || [],
+            mutedUsers: category.mutedUsers || [],
+            moderators: category.moderators || [],
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 };
 
 // POST /api/categories/:id/ban/:userId - забанити юзера в спільноті (не може постити/коментувати)
@@ -197,6 +221,7 @@ exports.banUser = async (req, res) => {
             await category.save();
         }
 
+        await category.populate('bannedUsers', 'nickname avatar');
         res.status(200).json({ success: true, bannedUsers: category.bannedUsers });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -215,6 +240,7 @@ exports.unbanUser = async (req, res) => {
         category.bannedUsers = category.bannedUsers.filter((id) => id.toString() !== req.params.userId);
         await category.save();
 
+        await category.populate('bannedUsers', 'nickname avatar');
         res.status(200).json({ success: true, bannedUsers: category.bannedUsers });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -238,6 +264,7 @@ exports.muteUser = async (req, res) => {
             await category.save();
         }
 
+        await category.populate('mutedUsers', 'nickname avatar');
         res.status(200).json({ success: true, mutedUsers: category.mutedUsers });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -256,6 +283,7 @@ exports.unmuteUser = async (req, res) => {
         category.mutedUsers = category.mutedUsers.filter((id) => id.toString() !== req.params.userId);
         await category.save();
 
+        await category.populate('mutedUsers', 'nickname avatar');
         res.status(200).json({ success: true, mutedUsers: category.mutedUsers });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

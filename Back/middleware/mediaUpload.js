@@ -85,8 +85,9 @@ exports.buildMediaArray = (files = []) => files.map((file) => ({
 
 // строит массив блоков content для поста из JSON-специфікації порядку блоків (req.body.contentSpec)
 // та фактично завантажених файлів (req.files, у тому ж порядку, у якому фронтенд їх додав у FormData).
-// contentSpec — JSON-рядок: [{ type: 'text', text }, { type: 'image'|'video'|'file' }, ...]
-// для не-текстових блоків відповідний файл береться по черзі з files.
+// contentSpec — JSON-рядок: [{ type: 'text', text }, { type: 'image'|'video'|'file' }, { type, existingUrl, mimeType, size, originalName }, ...]
+// для не-текстових блоків без existingUrl відповідний файл береться по черзі з files;
+// блоки з existingUrl (вже завантажені раніше, напр. з чернетки) file-чергу не займають.
 exports.buildContentBlocks = (contentSpecRaw, files = []) => {
     let spec;
     try {
@@ -101,6 +102,19 @@ exports.buildContentBlocks = (contentSpecRaw, files = []) => {
         if (block.type === 'text') {
             return { type: 'text', text: String(block.text || '').slice(0, 40000) };
         }
+
+        if (block.existingUrl) {
+            // already uploaded (e.g. via /posts/draft-media while editing a draft) — reuse as-is
+            const resolvedType = ['image', 'video', 'file'].includes(block.type) ? block.type : 'file';
+            return {
+                type: resolvedType,
+                url: block.existingUrl,
+                mimeType: block.mimeType,
+                size: block.size,
+                originalName: block.originalName
+            };
+        }
+
         const file = files[fileIdx];
         fileIdx += 1;
         if (!file) return null;

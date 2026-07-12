@@ -9,6 +9,7 @@ const Notification = require('../models/Notification');
 const Vote = require('../models/Vote');
 const SavedItem = require('../models/SavedItem');
 const Subscription = require('../models/Subscription');
+const { emitToUser } = require('../utils/socket');
 const Category = require('../models/Category');
 const { removeMediaFiles } = require('../middleware/mediaUpload');
 
@@ -246,6 +247,7 @@ exports.followUser = async (req, res) => {
             message: 'На вас підписався новий користувач',
             fromUser: req.user.id
         });
+        emitToUser(target._id.toString(), 'notification:new', { type: 'follow' });
 
         const followerCount = await Follow.countDocuments({ following: target._id });
         res.status(200).json({ success: true, isFollowing: true, followerCount });

@@ -5,8 +5,9 @@ const Vote = require('../models/Vote');
 const SavedItem = require('../models/SavedItem');
 const Subscription = require('../models/Subscription');
 const Notification = require('../models/Notification');
-const { buildMediaArray, buildContentBlocks, removeMediaFiles, parseIdsList, MAX_FILES } = require('../middleware/mediaUpload');
+const { buildMediaArray, buildContentBlocks, removeMediaFiles, parseIdsList, MAX_FILES, getMediaType } = require('../middleware/mediaUpload');
 const { extractMentionedNicknames, findMentionedUsers } = require('../utils/mentions');
+const { emitToUser, emitToCategory } = require('../utils/socket');
 
 // helper: applies sort order for a mongoose query based on ?sort=
 // new = createdAt desc, top = karma desc, controversial = karma asc (most-downvoted first)
@@ -172,7 +173,12 @@ exports.createPost = async (req, res) => {
                         post: post._id
                     }))
                 );
+                mentionTargets.forEach((userId) => emitToUser(userId, 'notification:new', { type: 'mention' }));
             }
+        }
+
+        if (moderationStatus === 'approved') {
+            emitToCategory(category, 'post:new', { postId: post._id.toString() });
         }
 
         const populated = await Post.findById(post._id)
@@ -182,6 +188,28 @@ exports.createPost = async (req, res) => {
             .lean();
 
         res.status(201).json(populated);
+    } catch (error) {
+        res.status(500).json({ message: 'Ошибка сервера', error: error.message });
+    }
+};
+
+// CREATE (draft support) - завантажує файли для чернетки без створення Post.
+// Повертає ті самі об'єкти { url, type, mimeType, size, originalName }, що йдуть у content-блоки поста,
+// щоб клієнт міг зберегти їх у localStorage (чернетка) і пізніше домалювати contentSpec при публікації.
+exports.uploadDraftMedia = async (req, res) => {
+    try {
+        const files = req.files || [];
+        if (files.length === 0) {
+            return res.status(400).json({ message: 'Файли не завантажено' });
+        }
+        const media = files.map((file) => ({
+            url: `media/${file.filename}`,
+            type: getMediaType(file.mimetype),
+            mimeType: file.mimetype,
+            size: file.size,
+            originalName: file.originalname
+        }));
+        res.status(201).json({ media });
     } catch (error) {
         res.status(500).json({ message: 'Ошибка сервера', error: error.message });
     }

@@ -17,6 +17,7 @@ router.post('/:id/subscribe', protect, categoryController.subscribe);
 router.delete('/:id/subscribe', protect, categoryController.unsubscribe);
 
 // Модерація спільноти
+router.get('/:id/moderation-lists', protect, categoryController.getModerationLists);
 router.post('/:id/ban/:userId', protect, categoryController.banUser);
 router.delete('/:id/ban/:userId', protect, categoryController.unbanUser);
 router.post('/:id/mute/:userId', protect, categoryController.muteUser);

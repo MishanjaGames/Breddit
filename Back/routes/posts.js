@@ -15,6 +15,7 @@ router.get('/:id', optionalAuth, postController.getPostById);
 
 // Защищённые роуты
 // uploadMedia стоит ДО validatePost: multer парсит multipart/form-data и кладёт текстовые поля в req.body
+router.post('/draft-media', protect, uploadMedia, postController.uploadDraftMedia);
 router.post('/', protect, uploadMedia, validatePost, postController.createPost);
 router.put('/:id', protect, uploadMedia, postController.updatePost);
 router.delete('/:id', protect, postController.deletePost);

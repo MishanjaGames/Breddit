@@ -1,8 +1,18 @@
-FROM node:18
+FROM node:18-slim
+
 WORKDIR /app
+
+# install deps first so this layer is cached unless package*.json changes
 COPY package*.json ./
-RUN npm install
+RUN npm install --omit=dev
+
 COPY . .
-RUN npm run build
-EXPOSE 3000
+
+# persisted uploads (avatars, post/comment media) — mount a volume here in production
+RUN mkdir -p uploads/avatars uploads/media
+VOLUME ["/app/uploads"]
+
+# Render/most hosts inject PORT at runtime; 4000 is just the local-dev default (see server.js)
+EXPOSE 4000
+
 CMD ["npm", "start"]

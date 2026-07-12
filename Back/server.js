@@ -10,8 +10,15 @@ const keys = require('./config/keys')
 
 const app = express()
 
+// CORS_ORIGIN accepts a comma-separated list (e.g. "https://myapp.vercel.app,http://localhost:3000")
+// so the same server config works for local dev and multiple deployed frontend URLs (prod + preview).
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean)
+
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: allowedOrigins,
   credentials: true
 }))
 
@@ -55,7 +62,11 @@ app.use((err, req, res, next) => {
 })
 
 if (require.main === module) {
-    app.listen(4000, () => console.log('Server started on 4000'))
+    const http = require('http')
+    const httpServer = http.createServer(app)
+    require('./utils/socket').initSocket(httpServer, allowedOrigins)
+    const PORT = process.env.PORT || 4000
+    httpServer.listen(PORT, () => console.log(`Server started on ${PORT} (HTTP + WebSocket)`))
 }
 
 module.exports = app

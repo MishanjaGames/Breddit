@@ -2,6 +2,7 @@ const Vote = require('../models/Vote');
 const Post = require('../models/Post');
 const Comment = require('../models/Comment');
 const Notification = require('../models/Notification');
+const { emitToUser, emitToPost } = require('../utils/socket');
 
 const updateKarma = async (targetType, targetId, delta) => {
     if (targetType === 'Post') {
@@ -55,7 +56,11 @@ exports.vote = async (req, res) => {
                 post: targetType === 'Post' ? targetId : target.post,
                 comment: targetType === 'Comment' ? targetId : null
             });
+            emitToUser(target.author.toString(), 'notification:new', { type: targetType === 'Post' ? 'upvote_post' : 'upvote_comment' });
         }
+
+        const relatedPostId = targetType === 'Post' ? targetId : target.post?.toString();
+        emitToPost(relatedPostId, 'vote:update', { targetType, targetId });
 
         res.status(201).json({ success: true, message: 'Vote created' });
     } catch (error) {

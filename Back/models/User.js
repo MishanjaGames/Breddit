@@ -26,13 +26,13 @@ const userSchema = new Schema({
     },
     googleId: {
         type: String,
-        default: String,
+        default: undefined,
         unique: true,
         sparse: true // sparse — чтобы несколько null не конфликтовали с unique-индексом
     },
     facebookId: {
         type: String,
-        default: String,
+        default: undefined,
         unique: true,
         sparse: true
     },
@@ -64,7 +64,7 @@ const userSchema = new Schema({
 
 
 userSchema.pre('save', async function () {
-    if (!this.isModified('password')) return;
+    if (!this.isModified('password') || !this.password) return;
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
 });
