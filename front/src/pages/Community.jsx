@@ -209,6 +209,11 @@ export default function Community() {
             )}
           </p>
         )}
+        {category.tags?.length > 0 && (
+          <div className="community-tag-list">
+            {category.tags.map((t) => <span key={t} className="community-tag">{t}</span>)}
+          </div>
+        )}
       </header>
 
       <div className="community-body">

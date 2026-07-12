@@ -60,8 +60,8 @@ export default function CreateCommunityModal() {
     if (!name.trim()) return;
     setBusy(true);
     try {
-      // backend POST /api/categories only accepts { name, description, icon, banner, rules }
-      const { data } = await api.post('/categories', { name, description });
+      // backend POST /api/categories accepts { name, description, icon, banner, rules, tags }
+      const { data } = await api.post('/categories', { name, description, tags: topic ? [topic] : [] });
       toast.success('Спільноту створено');
       close();
       navigate(`/r/${encodeURIComponent(data?.name || name)}`);

@@ -16,7 +16,7 @@ import { useAuth } from '../context/AuthContext';
 const MODE_CONFIG = {
   best: { feed: 'all', defaultSort: 'hot', emptyText: 'Тут поки що порожньо.' },
   popular: { feed: 'popular', defaultSort: 'hot', emptyText: 'Поки немає популярних постів.' },
-  news: { feed: 'all', defaultSort: 'new', emptyText: 'Свіжих постів поки немає.', lockSort: true },
+  news: { feed: 'news', defaultSort: 'new', emptyText: 'Свіжих постів поки немає.', lockSort: true },
 };
 
 export default function Home({ mode = 'best' }) {

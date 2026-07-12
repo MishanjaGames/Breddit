@@ -8,6 +8,8 @@ export default function EditCommunityModal({ category, initialTarget, onClose, o
   const [icon, setIcon] = useState(category.icon || '');
   const [banner, setBanner] = useState(category.banner || '');
   const [status, setStatus] = useState(category.status || 'public');
+  const [tags, setTags] = useState(category.tags || []);
+  const [tagInput, setTagInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -29,7 +31,7 @@ export default function EditCommunityModal({ category, initialTarget, onClose, o
     setBusy(true);
     setError('');
     // backend PUT /api/categories/:id accepts { name, description, icon, banner, rules }
-    const patch = { name, description, icon, banner, status, rules: category.rules || [] };
+    const patch = { name, description, icon, banner, status, rules: category.rules || [], tags };
     try {
       const { data } = await api.put(`/categories/${category._id}`, patch);
       onSaved?.(data);
@@ -46,6 +48,7 @@ export default function EditCommunityModal({ category, initialTarget, onClose, o
     { key: 'avatar', label: 'Зображення' },
     { key: 'banner', label: 'Банер' },
     { key: 'status', label: 'Статус' },
+    { key: 'tags', label: 'Теги' },
   ];
 
   return (
@@ -120,6 +123,51 @@ export default function EditCommunityModal({ category, initialTarget, onClose, o
                   <option value="private">Приватна</option>
                 </select>
               </label>
+            </div>
+          )}
+
+          {tab === 'tags' && (
+            <div className="edit-community-panel">
+              <label>
+                Додати тег (напр. news)
+                <div className="tag-input-row">
+                  <input
+                    type="text"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const t = tagInput.trim().toLowerCase();
+                        if (t && !tags.includes(t)) setTags([...tags, t]);
+                        setTagInput('');
+                      }
+                    }}
+                    placeholder="news, gaming, ..."
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={() => {
+                      const t = tagInput.trim().toLowerCase();
+                      if (t && !tags.includes(t)) setTags([...tags, t]);
+                      setTagInput('');
+                    }}
+                  >
+                    Додати
+                  </button>
+                </div>
+              </label>
+              <div className="tag-chip-list">
+                {tags.map((t) => (
+                  <span key={t} className="tag-chip">
+                    {t}
+                    <button type="button" onClick={() => setTags(tags.filter((x) => x !== t))} aria-label={`Прибрати тег ${t}`}>✕</button>
+                  </span>
+                ))}
+                {tags.length === 0 && <span className="post-meta-text">Тегів ще немає</span>}
+              </div>
+              <p className="post-meta-text">Спільноти з тегом <strong>news</strong> потраплять у стрічку «Новини».</p>
             </div>
           )}
 
