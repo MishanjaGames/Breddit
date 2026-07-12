@@ -13,6 +13,41 @@ const TOPIC_TABS = [
   'Nature & Outdoors', 'Spooky',
 ];
 
+// normalizes a tab label or a community tag into comparable lowercase words, so a tag like
+// "news" matches the tab "News & Politics" and "sci-fi" matches "Sciences", etc.
+const slugWords = (str) => String(str || '')
+  .toLowerCase()
+  .replace(/&/g, ' ')
+  .split(/[^a-z0-9]+/)
+  .filter(Boolean);
+
+// a community "matches" a tab if any of its tags shares a word with the tab label
+// (e.g. tag "gaming" matches tab "Games" via the shared root "gam"... kept simple: exact word match,
+// plus a couple of hand-mapped synonyms for the most common mismatches)
+const TAB_SYNONYMS = {
+  games: ['game', 'gaming', 'games'],
+  technology: ['tech', 'technology'],
+  movies: ['movie', 'movies', 'tv', 'film'],
+  news: ['news', 'politics'],
+  sciences: ['science', 'sciences', 'sci'],
+  music: ['music'],
+  sports: ['sport', 'sports'],
+  art: ['art', 'arts'],
+  vehicles: ['car', 'cars', 'vehicle', 'vehicles'],
+  food: ['food', 'drink', 'drinks', 'cooking'],
+  wellness: ['wellness', 'health', 'fitness'],
+  fashion: ['fashion', 'beauty'],
+};
+
+function communityMatchesTab(community, tabWords) {
+  const tags = (community.tags || []).map((t) => t.toLowerCase());
+  if (tags.length === 0) return false;
+  return tags.some((tag) => {
+    if (tabWords.includes(tag)) return true;
+    return Object.values(TAB_SYNONYMS).some((group) => group.includes(tag) && tabWords.some((w) => group.includes(w)));
+  });
+}
+
 function CommunityCard({ c, joined, onToggleJoin }) {
   return (
     <div className="explore-card">
@@ -88,8 +123,11 @@ export default function Explore() {
       const sorted = [...communities].sort((a, b) => (b.subscriberCount ?? 0) - (a.subscriberCount ?? 0));
       return { 'Most visited': sorted };
     }
-    // backend has no per-community topic field, so other tabs just show everything
-    return { [tab]: communities };
+    // filter down to communities whose tags actually match this topic — a community without
+    // any matching tag (or without tags at all) simply doesn't show up under this tab
+    const tabWords = slugWords(tab);
+    const matched = communities.filter((c) => communityMatchesTab(c, tabWords));
+    return { [tab]: matched };
   }, [communities, tab]);
 
   return (
@@ -113,7 +151,13 @@ export default function Explore() {
       {!loading && Object.entries(grouped).map(([section, list]) => (
         <section key={section} className="explore-section">
           <h2>{section}</h2>
-          {list.length === 0 && <p className="feed-status">Нічого не знайдено.</p>}
+          {list.length === 0 && (
+            <p className="feed-status">
+              {tab === 'All' || tab === 'Most Visited'
+                ? 'Нічого не знайдено.'
+                : `Немає спільнот з тегом, що відповідає темі «${tab}».`}
+            </p>
+          )}
           <div className="explore-grid">
             {list.map((c) => (
               <CommunityCard

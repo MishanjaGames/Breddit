@@ -122,7 +122,7 @@ export default function Sidebar({ collapsed, onToggleSidebar, mobileOpen, onClos
               {communities.map((c) => (
                 <NavLink key={c._id} to={`/r/${encodeURIComponent(c.name)}`} className="side-link">
                   <span className="sub-icon">{c.name[0]?.toUpperCase()}</span>
-                  r/{c.name.slice(0,16)+'...'}
+                  r/{(c.name.length>20)?c.name.slice(0,20)+'...':c.name}
                   {user && (
                     <button
                       type="button"

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import api from '../api/client';
 import { resolveCategoryByName } from '../api/resolve';
 import { useAuth } from '../context/AuthContext';
@@ -30,6 +30,8 @@ export default function Community() {
   const { user } = useAuth();
   const toast = useToast();
   const { socket } = useSocket();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sort = searchParams.get('sort') || 'hot';
   const [category, setCategory] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +39,6 @@ export default function Community() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [joined, setJoined] = useState(false);
-  const [sort, setSort] = useState('hot');
   const [view, setView] = useState(() => localStorage.getItem('feedView') || 'card');
   const [editOpen, setEditOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null); // 'avatar' | 'banner' | 'name' | null
@@ -123,6 +124,14 @@ export default function Community() {
   const setView2 = (v) => {
     setView(v);
     localStorage.setItem('feedView', v);
+  };
+
+  const setSortParam = (key) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('sort', key);
+      return next;
+    });
   };
 
   const toggleJoin = async () => {
@@ -297,7 +306,7 @@ export default function Community() {
 
       <div className="community-body">
         <div className={`feed-content ${mobileTab === 'about' ? 'community-mobile-hidden' : ''}`}>
-          <PostListControls sort={sort} onSortChange={setSort} view={view} onViewChange={setView2} />
+          <PostListControls sort={sort} onSortChange={setSortParam} view={view} onViewChange={setView2} />
           <div className={view === 'compact' ? 'post-list post-list-compact' : 'post-list'}>
             {posts.length === 0 && <p className="feed-status">У цій спільноті ще немає постів.</p>}
             {posts.map((post) => (

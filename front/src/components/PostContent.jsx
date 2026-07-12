@@ -3,42 +3,13 @@ import MarkdownText from '../utils/markdown.jsx';
 import MediaCarousel from './MediaCarousel';
 import MediaLightbox from './MediaLightbox';
 import { mediaUrl } from '../utils/media';
-
-function formatSize(bytes) {
-  if (!bytes && bytes !== 0) return '';
-  if (bytes < 1024) return `${bytes} Б`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} КБ`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
-}
-
-function extLabel(filename) {
-  const m = /\.([a-z0-9]+)$/i.exec(filename || '');
-  return m ? m[1].toUpperCase() : 'ФАЙЛ';
-}
-
-// groups the ordered block list into runs: consecutive blocks of the SAME media type
-// (image or video, not mixed) become one carousel run, everything else (text, file) stays its own run
-function groupBlocks(content) {
-  const groups = [];
-  content.forEach((block) => {
-    const isMedia = block.type === 'image' || block.type === 'video';
-    const last = groups[groups.length - 1];
-    if (isMedia && last?.kind === 'media' && last.mediaType === block.type) {
-      last.items.push(block);
-    } else if (isMedia) {
-      groups.push({ kind: 'media', mediaType: block.type, items: [block] });
-    } else {
-      groups.push({ kind: block.type, items: [block] });
-    }
-  });
-  return groups;
-}
+import { groupContentBlocks, formatFileSize, fileExtLabel } from '../utils/contentBlocks';
 
 export default function PostContent({ content }) {
   const [lightbox, setLightbox] = useState(null); // { items, index } | null
 
   if (!Array.isArray(content) || content.length === 0) return null;
-  const groups = groupBlocks(content);
+  const groups = groupContentBlocks(content);
 
   return (
     <div className="post-content-blocks">
@@ -65,10 +36,10 @@ export default function PostContent({ content }) {
           const name = block.originalName || 'файл';
           return (
             <div key={gi} className="post-file-block">
-              <span className="content-block-file-icon">{extLabel(name)}</span>
+              <span className="content-block-file-icon">{fileExtLabel(name)}</span>
               <div className="content-block-file-meta">
                 <span className="content-block-file-name">{name}</span>
-                <span className="post-meta-text">Файл · {formatSize(block.size)}</span>
+                <span className="post-meta-text">Файл · {formatFileSize(block.size)}</span>
               </div>
               <a className="post-file-download" href={src} download={name} aria-label="Завантажити">⬇</a>
             </div>

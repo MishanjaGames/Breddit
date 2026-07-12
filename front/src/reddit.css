@@ -196,7 +196,7 @@ input, textarea { font-family: inherit; }
 
 /* ---------- Sidebar ---------- */
 .side-nav {
-  width: 240px;
+  width: 280px;
   flex-shrink: 0;
   display: none;
   position: sticky;
@@ -259,6 +259,7 @@ input, textarea { font-family: inherit; }
   border-radius: var(--radius);
   color: var(--text);
   font-weight: 500;
+  font-size: 12px;
 }
 .side-link:hover { background: var(--bg-elevated); }
 .side-link.active { background: var(--bg-elevated); font-weight: 700; }
@@ -2471,3 +2472,41 @@ img.avatar-dot, img.sub-icon {
 .post-card-repost-preview { pointer-events: none; }
 .post-card-repost-preview .media-carousel,
 .post-card-repost-preview .lightbox-overlay { pointer-events: auto; }
+/* Clickable feed cards (whole card navigates to the post page) */
+.post-card-clickable { cursor: pointer; }
+.post-card-clickable:hover { border-color: var(--text-muted); }
+
+/* Feed body clamp + gradient "More..." link (used when a card has long text or more than one block) */
+.feed-body-clamped {
+  position: relative;
+  max-height: 220px;
+  overflow: hidden;
+  border-radius: var(--radius);
+}
+.feed-body-clamped-inner { pointer-events: none; }
+.feed-body-clamped::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 72px;
+  background: linear-gradient(to bottom, transparent, var(--bg-elevated));
+  pointer-events: none;
+}
+.feed-body-more {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8px;
+  text-align: center;
+  color: var(--blue, #4a9eff);
+  font-weight: 700;
+  font-size: 13px;
+  text-decoration: none;
+  z-index: 1;
+}
+.feed-body-more:hover { text-decoration: underline; }
+
+.comment-body-clamped { max-height: 120px; }
+.comment-body-clamped::after { height: 48px; }

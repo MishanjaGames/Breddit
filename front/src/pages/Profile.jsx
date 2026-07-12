@@ -7,8 +7,10 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import SideLegal from '../components/SideLegal';
 import EditProfileModal from '../components/EditProfileModal';
+import PostCard from '../components/PostCard';
+import ProfileCommentCard from '../components/ProfileCommentCard';
 
-const TABS = ['Пости', 'Про акаунт'];
+const TABS = ['Пости', 'Коментарі', 'Про акаунт'];
 const PAGE_SIZE = 20;
 
 function formatAge(dateStr) {
@@ -25,17 +27,28 @@ export default function Profile() {
   const toast = useToast();
   const isOwn = user?.nickname === nickname;
   const [profile, setProfile] = useState(null);
-  const [posts, setPosts] = useState([]);
-  const [postsLoading, setPostsLoading] = useState(true);
-  const [postsLoadingMore, setPostsLoadingMore] = useState(false);
-  const [postsPage, setPostsPage] = useState(1);
-  const [postsTotalPages, setPostsTotalPages] = useState(1);
   const [tab, setTab] = useState('Пости');
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const sentinelRef = useRef(null);
+
+  // posts tab state
+  const [posts, setPosts] = useState([]);
+  const [postsLoading, setPostsLoading] = useState(true);
+  const [postsLoadingMore, setPostsLoadingMore] = useState(false);
+  const [postsPage, setPostsPage] = useState(1);
+  const [postsTotalPages, setPostsTotalPages] = useState(1);
+
+  // comments tab state
+  const [comments, setComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(true);
+  const [commentsLoadingMore, setCommentsLoadingMore] = useState(false);
+  const [commentsPage, setCommentsPage] = useState(1);
+  const [commentsTotalPages, setCommentsTotalPages] = useState(1);
+
+  const postsSentinelRef = useRef(null);
+  const commentsSentinelRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,6 +80,22 @@ export default function Profile() {
     return () => { cancelled = true; };
   }, [nickname]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setCommentsLoading(true);
+    setComments([]);
+    setCommentsPage(1);
+    api.get(`/comments/author/${encodeURIComponent(nickname)}`, { params: { limit: PAGE_SIZE, page: 1 } })
+      .then(({ data }) => {
+        if (cancelled) return;
+        setComments(data.comments || []);
+        setCommentsTotalPages(data.totalPages || 1);
+      })
+      .catch(() => { if (!cancelled) setComments([]); })
+      .finally(() => { if (!cancelled) setCommentsLoading(false); });
+    return () => { cancelled = true; };
+  }, [nickname]);
+
   const loadMorePosts = useCallback(() => {
     if (postsLoadingMore || postsPage >= postsTotalPages) return;
     const nextPage = postsPage + 1;
@@ -82,8 +111,22 @@ export default function Profile() {
       .finally(() => setPostsLoadingMore(false));
   }, [nickname, postsPage, postsTotalPages, postsLoadingMore]);
 
+  const loadMoreComments = useCallback(() => {
+    if (commentsLoadingMore || commentsPage >= commentsTotalPages) return;
+    const nextPage = commentsPage + 1;
+    setCommentsLoadingMore(true);
+    api.get(`/comments/author/${encodeURIComponent(nickname)}`, { params: { limit: PAGE_SIZE, page: nextPage } })
+      .then(({ data }) => {
+        setComments((prev) => [...prev, ...(data.comments || [])]);
+        setCommentsPage(nextPage);
+        setCommentsTotalPages(data.totalPages || 1);
+      })
+      .catch(() => {})
+      .finally(() => setCommentsLoadingMore(false));
+  }, [nickname, commentsPage, commentsTotalPages, commentsLoadingMore]);
+
   useEffect(() => {
-    const el = sentinelRef.current;
+    const el = postsSentinelRef.current;
     if (!el || tab !== 'Пости') return;
     const observer = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting) loadMorePosts();
@@ -91,6 +134,16 @@ export default function Profile() {
     observer.observe(el);
     return () => observer.disconnect();
   }, [loadMorePosts, tab]);
+
+  useEffect(() => {
+    const el = commentsSentinelRef.current;
+    if (!el || tab !== 'Коментарі') return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) loadMoreComments();
+    }, { rootMargin: '400px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMoreComments, tab]);
 
   const toggleFollow = async () => {
     if (!user || followBusy) return;
@@ -164,35 +217,39 @@ export default function Profile() {
           ))}
         </div>
 
+        <hr/>
+
         {tab === 'Пости' && (
           <div className="post-list">
             {postsLoading && <p className="feed-status">Завантаження…</p>}
             {!postsLoading && posts.length === 0 && <p className="feed-status">Тут поки що нічого немає.</p>}
             {posts.map((item) => (
-              <article key={item._id} className="post-card comment-item">
-                <header className="post-card-head">
-                  <span className="post-sub-link">r/{item.category?.name || 'невідомо'}</span>
-                  <span className="post-dot">·</span>
-                  <span className="post-meta-text">{timeAgo(item.createdAt)}</span>
-                  {item.updatedAt && item.updatedAt !== item.createdAt && (
-                    <>
-                      <span className="post-dot">·</span>
-                      <span className="edited-label">ред. {timeAgo(item.updatedAt)}</span>
-                    </>
-                  )}
-                </header>
-                <p className="post-desc">{item.title}</p>
-              </article>
+              <PostCard key={item._id} post={item} />
             ))}
-            <div ref={sentinelRef} />
+            <div ref={postsSentinelRef} />
             {postsLoadingMore && <p className="feed-status">Завантаження…</p>}
           </div>
         )}
 
-        {tab === 'Про акаунт' && (
-          <div className="profile-content-note" style={{ display: 'block' }}>
-            <p>{profile.bio || 'Опис відсутній.'}</p>
+        {tab === 'Коментарі' && (
+          <div className="post-list">
+            {commentsLoading && <p className="feed-status">Завантаження…</p>}
+            {!commentsLoading && comments.length === 0 && <p className="feed-status">Тут поки що нічого немає.</p>}
+            {comments.map((item) => (
+              <ProfileCommentCard key={item._id} comment={item} />
+            ))}
+            <div ref={commentsSentinelRef} />
+            {commentsLoadingMore && <p className="feed-status">Завантаження…</p>}
           </div>
+        )}
+
+        {tab === 'Про акаунт' && (
+          <article className="post-card comment-item">
+            <header className="post-card-head">
+              <span className="post-sub-link">About me</span>
+            </header>
+            <p className="post-desc">{profile.bio || 'Опис відсутній.'}</p>
+          </article>
         )}
       </div>
 

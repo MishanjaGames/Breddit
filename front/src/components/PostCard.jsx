@@ -3,18 +3,22 @@ import { Link } from 'react-router-dom';
 import VoteButtons from './VoteButtons';
 import PostMenu from './PostMenu';
 import AuthorBadge, { getAuthorRole } from './AuthorBadge';
-import MediaGallery from './MediaGallery';
+import FeedPostBody from './FeedPostBody';
 import api from '../api/client';
 import timeAgo from '../utils/timeAgo';
 import { useAuth } from '../context/AuthContext';
-import MarkdownText from '../utils/markdown.jsx';
+import { useCardNavigate } from '../utils/cardNavigate';
+import { legacyPostToContent } from '../utils/contentBlocks';
 
 export default function PostCard({ post }) {
   const { user } = useAuth();
   const [saved, setSaved] = useState(!!post.isSaved);
   const [saving, setSaving] = useState(false);
   const [hidden, setHidden] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+
+  const subName = post.category?.name;
+  const postUrl = `/r/${encodeURIComponent(subName)}/p/${encodeURIComponent(post.title)}`;
+  const handleCardClick = useCardNavigate(postUrl);
 
   const handleVote = async (value) => {
     await api.post('/votes', { targetType: 'Post', targetId: post._id, value });
@@ -37,15 +41,18 @@ export default function PostCard({ post }) {
 
   if (hidden) return null;
 
-  const subName = post.category?.name;
   const authorName = post.author?.nickname || post.author?.username;
   const authorRole = getAuthorRole(post.author?._id || post.author, {
     postAuthorId: post.author?._id || post.author,
   });
   const isPinned = post.pinned || post.isPinned;
+  const content = post.content?.length > 0 ? post.content : legacyPostToContent(post);
 
   return (
-    <article className={`post-card ${isPinned ? 'post-card-pinned' : ''}`}>
+    <article
+      className={`post-card post-card-clickable ${isPinned ? 'post-card-pinned' : ''}`}
+      onClick={handleCardClick}
+    >
       <header className="post-card-head">
         <span className="sub-icon">{subName?.[0]?.toUpperCase() || '?'}</span>
         {subName && <Link to={`/r/${encodeURIComponent(subName)}`} className="post-sub-link">r/{subName}</Link>}
@@ -62,33 +69,18 @@ export default function PostCard({ post }) {
         <PostMenu saved={saved} onSave={toggleSave} onHide={() => setHidden(true)} />
       </header>
 
-      <Link to={`/r/${encodeURIComponent(subName)}/p/${encodeURIComponent(post.title)}`} className="post-title">
+      <Link to={postUrl} className="post-title">
         {post.title}
       </Link>
 
-      {post.description && (
-        <div className={`post-desc-wrap ${!expanded && post.description.length > 300 ? 'post-desc-clamped' : ''}`}>
-          <MarkdownText className="post-desc" text={post.description} />
-          {!expanded && post.description.length > 300 && (
-            <button
-              type="button"
-              className="post-desc-more"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpanded(true); }}
-            >
-              more...
-            </button>
-          )}
-        </div>
-      )}
-
-      <MediaGallery media={post.media} />
+      <FeedPostBody content={content} postUrl={postUrl} />
 
       <footer className="post-card-foot">
         <VoteButtons score={post.karma} myVote={post.myVote} onVote={handleVote} />
-        <Link to={`/r/${encodeURIComponent(subName)}/p/${encodeURIComponent(post.title)}`} className="post-action-btn">
+        <Link to={postUrl} className="post-action-btn">
           💬 {post.commentCount ?? 0}
         </Link>
-        <button className="post-action-btn">↗ Поширити</button>
+        <Link to={`${postUrl}/repost`} className="post-action-btn">↗ Поширити</Link>
         {user && (
           <button className="post-action-btn" onClick={toggleSave} disabled={saving}>
             {saved ? '🔖 Збережено' : '🔖 Зберегти'}

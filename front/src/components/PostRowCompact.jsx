@@ -6,6 +6,7 @@ import api from '../api/client';
 import timeAgo from '../utils/timeAgo';
 import { mediaUrl } from '../utils/media';
 import { useAuth } from '../context/AuthContext';
+import { useCardNavigate } from '../utils/cardNavigate';
 import { useState } from 'react';
 
 export default function PostRowCompact({ post }) {
@@ -18,7 +19,11 @@ export default function PostRowCompact({ post }) {
     postAuthorId: post.author?._id || post.author,
   });
   const isPinned = post.pinned || post.isPinned;
-  const thumb = post.media?.[0]?.type === 'video' ? null : mediaUrl(post.media?.[0]?.url);
+  // thumbnail: first image/video block from the new content array, falling back to the legacy media[]
+  const firstMedia = post.content?.find((b) => b.type === 'image' || b.type === 'video') || post.media?.[0];
+  const thumb = firstMedia?.type === 'video' ? null : mediaUrl(firstMedia?.url);
+  const postUrl = `/r/${encodeURIComponent(subName)}/p/${encodeURIComponent(post.title)}`;
+  const handleRowClick = useCardNavigate(postUrl);
 
   const handleVote = async (value) => {
     await api.post('/votes', { targetType: 'Post', targetId: post._id, value });
@@ -39,7 +44,10 @@ export default function PostRowCompact({ post }) {
   if (hidden) return null;
 
   return (
-    <article className={`post-row-compact ${isPinned ? 'post-card-pinned' : ''}`}>
+    <article
+      className={`post-row-compact post-card-clickable ${isPinned ? 'post-card-pinned' : ''}`}
+      onClick={handleRowClick}
+    >
       <VoteButtons vertical score={post.karma} myVote={post.myVote} onVote={handleVote} />
       {thumb ? (
         <img className="compact-thumb" src={thumb} alt="" />
@@ -60,14 +68,14 @@ export default function PostRowCompact({ post }) {
           <span className="post-meta-text">{timeAgo(post.createdAt)}</span>
           {isPinned && <span className="pinned-tag">📌</span>}
         </div>
-        <Link to={`/r/${encodeURIComponent(subName)}/p/${encodeURIComponent(post.title)}`} className="compact-title">
+        <Link to={postUrl} className="compact-title">
           {post.title}
         </Link>
         <div className="compact-actions">
-          <Link to={`/r/${encodeURIComponent(subName)}/p/${encodeURIComponent(post.title)}`} className="post-action-btn">
+          <Link to={postUrl} className="post-action-btn">
             💬 {post.commentCount ?? 0}
           </Link>
-          <button className="post-action-btn">↗ Поширити</button>
+          <Link to={`${postUrl}/repost`} className="post-action-btn">↗ Поширити</Link>
           <PostMenu saved={saved} onSave={toggleSave} onHide={() => setHidden(true)} />
         </div>
       </div>
