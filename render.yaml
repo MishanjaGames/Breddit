@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: breddit-api
+    name: Breddit-API
     runtime: node
     plan: free
     branch: backend
