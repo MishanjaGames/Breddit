@@ -6,6 +6,7 @@ import PostRowCompact from '../components/PostRowCompact';
 import PostListControls from '../components/PostListControls';
 import RecentPosts from '../components/RecentPosts';
 import PopularCommunities from '../components/PopularCommunities';
+import SideLegal from '../components/SideLegal';
 import { useAuth } from '../context/AuthContext';
 
 // mode drives the base query sent to the backend + the empty-state copy.
@@ -78,6 +79,7 @@ export default function Home({ mode = 'best' }) {
       <aside className="home-side">
         {user && <RecentPosts />}
         <PopularCommunities />
+        <SideLegal />
       </aside>
     </div>
   );

@@ -35,7 +35,7 @@ export default function Navbar({ onToggleSidebar }) {
   return (
     <nav className="navbar">
       <div className="navbar-left">
-        <button className="hamburger-btn" onClick={onToggleSidebar} aria-label="Меню">☰</button>
+        {user && <button className="hamburger-btn" onClick={onToggleSidebar} aria-label="Меню">☰</button>}
         <Link className="navbar-brand" to="/">
           <span className="brand-icon">r</span>
           <span className="brand-word">reddit</span>

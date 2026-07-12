@@ -8,6 +8,7 @@ import PostCard from '../components/PostCard';
 import PostRowCompact from '../components/PostRowCompact';
 import PostListControls from '../components/PostListControls';
 import EditCommunityModal from '../components/EditCommunityModal';
+import SideLegal from '../components/SideLegal';
 import { mediaUrl } from '../utils/media';
 
 function formatCreatedDate(value) {
@@ -101,6 +102,7 @@ export default function Community() {
         description: category.description,
         icon: category.icon,
         banner: category.banner,
+        status: category.status,
         rules: nextRules,
       });
       setCategory((prev) => ({ ...prev, rules: data.rules }));
@@ -118,6 +120,7 @@ export default function Community() {
         description: category.description,
         icon: category.icon,
         banner: category.banner,
+        status: category.status,
         rules: nextRules,
       });
       setCategory((prev) => ({ ...prev, rules: data.rules }));
@@ -297,6 +300,7 @@ export default function Community() {
               </div>
             </div>
           )}
+          <SideLegal />
         </aside>
       </div>
 

@@ -14,15 +14,26 @@ import SubmitPost from './pages/SubmitPost';
 import Profile from './pages/Profile';
 import Notifications from './pages/Notifications';
 import Drafts from './pages/Drafts';
+import { useAuth } from './context/AuthContext';
 
 export default function App() {
+  const { user } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="app-shell">
-      <Navbar onToggleSidebar={() => setSidebarCollapsed((c) => !c)} />
+      <Navbar onToggleSidebar={() => { setSidebarCollapsed((c) => !c); setMobileOpen((o) => !o); }} />
       <div className="app-body">
-        <Sidebar collapsed={sidebarCollapsed} onToggleSidebar={() => setSidebarCollapsed((c) => !c)} />
+        {user && (
+          <Sidebar
+            collapsed={sidebarCollapsed}
+            mobileOpen={mobileOpen}
+            onToggleSidebar={() => setSidebarCollapsed((c) => !c)}
+            onCloseMobile={() => setMobileOpen(false)}
+          />
+        )}
+        {user && mobileOpen && <div className="side-nav-backdrop" onClick={() => setMobileOpen(false)} />}
         <main className="app-main">
           <Routes>
             <Route path="/" element={<Home mode="best" />} />

@@ -4,8 +4,10 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useCreateCommunityModal } from '../context/CreateCommunityModalContext';
+import { isFavorite, toggleFavorite } from '../utils/favorites';
 
-function CommunityRow({ c, isOwner, onLeave }) {
+function CommunityRow({ c, isOwner, onLeave, onToggleFav }) {
+  const fav = isFavorite(c._id);
   return (
     <div className="manage-community-row">
       {c.icon ? (
@@ -15,9 +17,17 @@ function CommunityRow({ c, isOwner, onLeave }) {
       )}
       <div className="manage-community-info">
         <Link to={`/r/${encodeURIComponent(c.name)}`} className="post-sub-link">r/{c.name}</Link>
-        <span className="widget-sub">{(c.subscriberCount ?? 0).toLocaleString('en-US')} members</span>
+        <span className="widget-sub">{(c.subscriberCount ?? 0).toLocaleString('en-US')} учасників</span>
       </div>
       <div className="manage-community-actions">
+        <button
+          type="button"
+          className={`star-icon ${fav ? 'star-active' : ''}`}
+          onClick={() => onToggleFav(c._id)}
+          title={fav ? 'Прибрати з обраного' : 'Додати в обране'}
+        >
+          {fav ? '★' : '☆'}
+        </button>
         {isOwner && <span className="owner-badge" title="Ви власник">👑</span>}
         <Link className="btn btn-outline btn-sm" to={`/r/${encodeURIComponent(c.name)}`}>Відкрити</Link>
         {!isOwner && (
@@ -28,6 +38,11 @@ function CommunityRow({ c, isOwner, onLeave }) {
   );
 }
 
+const FILTERS = [
+  { key: 'all', label: 'Усі спільноти' },
+  { key: 'favorited', label: 'Обране' },
+];
+
 export default function ManageCommunities() {
   const { user } = useAuth();
   const toast = useToast();
@@ -35,6 +50,8 @@ export default function ManageCommunities() {
   const [owned, setOwned] = useState([]);
   const [subscribed, setSubscribed] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
+  const [, setFavVersion] = useState(0);
 
   // backend has no "moderated" concept and no dedicated "owned" endpoint,
   // so we derive ownership from the subscribed list by comparing creator to the current user
@@ -57,6 +74,12 @@ export default function ManageCommunities() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  useEffect(() => {
+    const onChange = () => setFavVersion((v) => v + 1);
+    window.addEventListener('favorites-changed', onChange);
+    return () => window.removeEventListener('favorites-changed', onChange);
+  }, []);
+
   const handleLeave = async (c) => {
     setSubscribed((prev) => prev.filter((x) => x._id !== c._id));
     try {
@@ -68,29 +91,62 @@ export default function ManageCommunities() {
     }
   };
 
+  const handleToggleFav = (id) => {
+    toggleFavorite(id);
+    setFavVersion((v) => v + 1);
+  };
+
   if (!user) return <p className="feed-status">Увійдіть, щоб керувати спільнотами.</p>;
   if (loading) return <p className="feed-status">Завантаження…</p>;
+
+  const applyFilter = (list) => (filter === 'favorited' ? list.filter((c) => isFavorite(c._id)) : list);
+  const visibleOwned = applyFilter(owned);
+  const visibleSubscribed = applyFilter(subscribed);
 
   return (
     <div className="manage-communities-page">
       <div className="manage-communities-header">
         <h1>Керування спільнотами</h1>
-        <button className="btn btn-primary btn-sm" onClick={openCreateCommunity}>+ Створити спільноту</button>
+        <div className="manage-communities-header-actions">
+          <select
+            className="manage-communities-filter"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            aria-label="Фільтр спільнот"
+          >
+            {FILTERS.map((f) => (
+              <option key={f.key} value={f.key}>{f.label}</option>
+            ))}
+          </select>
+          <button className="btn btn-primary btn-sm" onClick={openCreateCommunity}>+ Створити спільноту</button>
+        </div>
       </div>
 
       <section className="manage-communities-section">
         <h2>Ваші спільноти</h2>
-        {owned.length === 0 && <p className="feed-status">Ви ще не створили жодної спільноти.</p>}
+        {visibleOwned.length === 0 && (
+          <p className="feed-status">
+            {filter === 'favorited' ? 'Немає обраних серед ваших спільнот.' : 'Ви ще не створили жодної спільноти.'}
+          </p>
+        )}
         <div className="manage-community-list">
-          {owned.map((c) => <CommunityRow key={c._id} c={c} isOwner onLeave={handleLeave} />)}
+          {visibleOwned.map((c) => (
+            <CommunityRow key={c._id} c={c} isOwner onLeave={handleLeave} onToggleFav={handleToggleFav} />
+          ))}
         </div>
       </section>
 
       <section className="manage-communities-section">
         <h2>Приєднані спільноти</h2>
-        {subscribed.length === 0 && <p className="feed-status">Ви ще не приєдналися до жодної спільноти.</p>}
+        {visibleSubscribed.length === 0 && (
+          <p className="feed-status">
+            {filter === 'favorited' ? 'Немає обраних серед приєднаних спільнот.' : 'Ви ще не приєдналися до жодної спільноти.'}
+          </p>
+        )}
         <div className="manage-community-list">
-          {subscribed.map((c) => <CommunityRow key={c._id} c={c} onLeave={handleLeave} />)}
+          {visibleSubscribed.map((c) => (
+            <CommunityRow key={c._id} c={c} onLeave={handleLeave} onToggleFav={handleToggleFav} />
+          ))}
         </div>
       </section>
     </div>

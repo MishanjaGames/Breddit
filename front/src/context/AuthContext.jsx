@@ -3,8 +3,16 @@ import api from '../api/client';
 
 const AuthContext = createContext(null);
 
+// backend returns { id, ... } but several pages compare against user._id —
+// normalize once here so both keys are always present and in sync.
+const normalizeUser = (u) => (u ? { ...u, _id: u._id || u.id, id: u.id || u._id } : u);
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUserRaw] = useState(null);
+  const setUser = (value) => setUserRaw((prev) => {
+    const next = typeof value === 'function' ? value(prev) : value;
+    return normalizeUser(next);
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

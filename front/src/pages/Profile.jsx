@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import timeAgo from '../utils/timeAgo';
 import { mediaUrl } from '../utils/media';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import SideLegal from '../components/SideLegal';
+import EditProfileModal from '../components/EditProfileModal';
 
 const TABS = ['Пости', 'Про акаунт'];
 
@@ -17,6 +19,7 @@ function formatAge(dateStr) {
 
 export default function Profile() {
   const { nickname } = useParams();
+  const navigate = useNavigate();
   const { user, setUser } = useAuth();
   const toast = useToast();
   const isOwn = user?.nickname === nickname;
@@ -27,8 +30,7 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
-  const [avatarBusy, setAvatarBusy] = useState(false);
-  const fileInputRef = useRef(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,36 +79,13 @@ export default function Profile() {
     }
   };
 
-  const uploadAvatar = async (file) => {
-    if (!file) return;
-    setAvatarBusy(true);
-    try {
-      const form = new FormData();
-      form.append('avatar', file);
-      const { data } = await api.put('/users/me/avatar', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      setProfile((prev) => ({ ...prev, avatar: data.avatar }));
-      setUser((prev) => (prev ? { ...prev, avatar: data.avatar } : prev));
-      toast.success('Аватар оновлено');
-    } catch {
-      toast.error('Не вдалося завантажити аватар');
-    } finally {
-      setAvatarBusy(false);
-    }
-  };
-
-  const removeAvatar = async () => {
-    setAvatarBusy(true);
-    try {
-      await api.delete('/users/me/avatar');
-      setProfile((prev) => ({ ...prev, avatar: null }));
-      setUser((prev) => (prev ? { ...prev, avatar: null } : prev));
-      toast.success('Аватар видалено');
-    } catch {
-      toast.error('Не вдалося видалити аватар');
-    } finally {
-      setAvatarBusy(false);
+  const handleProfileSaved = (patch) => {
+    setProfile((prev) => ({ ...prev, ...patch }));
+    setUser((prev) => (prev ? { ...prev, ...patch } : prev));
+    toast.success('Профіль оновлено');
+    // nickname change moves the profile URL, since the route is keyed on it
+    if (patch.nickname && patch.nickname !== nickname) {
+      navigate(`/user/${encodeURIComponent(patch.nickname)}`, { replace: true });
     }
   };
 
@@ -114,12 +93,17 @@ export default function Profile() {
   if (!profile) return <p className="feed-status">Користувача не знайдено.</p>;
 
   const avatarSrc = mediaUrl(profile.avatar);
+  const bannerSrc = mediaUrl(profile.banner);
   const totalKarma = (profile.postKarma ?? 0) + (profile.commentKarma ?? 0);
   const accountAge = profile.createdAt ? formatAge(profile.createdAt) : null;
 
   return (
     <div className="profile-page">
       <div className="profile-main">
+        <div
+          className="profile-banner"
+          style={bannerSrc ? { backgroundImage: `url(${bannerSrc})` } : undefined}
+        />
         <header className="profile-header">
           {avatarSrc ? (
             <img className="avatar-dot large" src={avatarSrc} alt="" />
@@ -129,7 +113,13 @@ export default function Profile() {
           <div>
             <h1>{nickname}</h1>
             <span className="post-meta-text">u/{nickname}</span>
+            {profile.status && <p className="profile-status-line">{profile.status}</p>}
           </div>
+          {isOwn && (
+            <button className="btn btn-outline btn-sm profile-edit-btn" onClick={() => setEditOpen(true)}>
+              ✎ Редагувати профіль
+            </button>
+          )}
         </header>
 
         <div className="profile-tabs">
@@ -179,28 +169,13 @@ export default function Profile() {
           </div>
           <h3>{nickname}</h3>
           <span className="post-meta-text">u/{nickname}</span>
+          {profile.status && <p className="profile-status-line profile-status-line-centered">{profile.status}</p>}
 
           {isOwn && (
             <div className="profile-card-actions">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                hidden
-                onChange={(e) => uploadAvatar(e.target.files?.[0])}
-              />
-              <button
-                className="btn btn-outline btn-sm btn-block"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={avatarBusy}
-              >
-                Змінити аватар
+              <button className="btn btn-outline btn-sm btn-block" onClick={() => setEditOpen(true)}>
+                ✎ Редагувати профіль
               </button>
-              {profile.avatar && (
-                <button className="btn btn-ghost btn-sm btn-block" onClick={removeAvatar} disabled={avatarBusy}>
-                  Прибрати аватар
-                </button>
-              )}
             </div>
           )}
 
@@ -248,7 +223,16 @@ export default function Profile() {
             )}
           </div>
         </div>
+        <SideLegal />
       </aside>
+
+      {editOpen && (
+        <EditProfileModal
+          profile={{ ...profile, nickname }}
+          onClose={() => setEditOpen(false)}
+          onSaved={handleProfileSaved}
+        />
+      )}
     </div>
   );
 }

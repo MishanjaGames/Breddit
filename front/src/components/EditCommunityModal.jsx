@@ -7,6 +7,7 @@ export default function EditCommunityModal({ category, initialTarget, onClose, o
   const [description, setDescription] = useState(category.description || '');
   const [icon, setIcon] = useState(category.icon || '');
   const [banner, setBanner] = useState(category.banner || '');
+  const [status, setStatus] = useState(category.status || 'public');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -28,7 +29,7 @@ export default function EditCommunityModal({ category, initialTarget, onClose, o
     setBusy(true);
     setError('');
     // backend PUT /api/categories/:id accepts { name, description, icon, banner, rules }
-    const patch = { name, description, icon, banner, rules: category.rules || [] };
+    const patch = { name, description, icon, banner, status, rules: category.rules || [] };
     try {
       const { data } = await api.put(`/categories/${category._id}`, patch);
       onSaved?.(data);
@@ -44,6 +45,7 @@ export default function EditCommunityModal({ category, initialTarget, onClose, o
     { key: 'name', label: 'Назва та опис' },
     { key: 'avatar', label: 'Зображення' },
     { key: 'banner', label: 'Банер' },
+    { key: 'status', label: 'Статус' },
   ];
 
   return (
@@ -105,6 +107,19 @@ export default function EditCommunityModal({ category, initialTarget, onClose, o
               {banner && (
                 <button type="button" className="link-btn" onClick={() => setBanner('')}>Прибрати банер</button>
               )}
+            </div>
+          )}
+
+          {tab === 'status' && (
+            <div className="edit-community-panel">
+              <label>
+                Статус спільноти
+                <select value={status} onChange={(e) => setStatus(e.target.value)}>
+                  <option value="public">Публічна</option>
+                  <option value="restricted">Обмежена</option>
+                  <option value="private">Приватна</option>
+                </select>
+              </label>
             </div>
           )}
 

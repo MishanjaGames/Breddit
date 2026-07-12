@@ -50,11 +50,11 @@ export default function PostRowCompact({ post }) {
         <div className="compact-meta">
           {subName && <Link to={`/r/${encodeURIComponent(subName)}`} className="post-sub-link">r/{subName}</Link>}
           {authorName && (
-            <>
+            <span className="post-author-hide-group">
               <span className="post-dot">·</span>
               <Link to={`/user/${authorName}`} className="post-author-link">u/{authorName}</Link>
               <AuthorBadge role={authorRole} />
-            </>
+            </span>
           )}
           <span className="post-dot">·</span>
           <span className="post-meta-text">{timeAgo(post.createdAt)}</span>

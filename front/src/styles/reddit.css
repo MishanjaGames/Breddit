@@ -195,6 +195,31 @@ input, textarea { font-family: inherit; }
   padding-top: 10px;
 }
 
+/* Mobile: sidebar becomes a fixed slide-in drawer instead of a static column */
+@media (max-width: 899px) {
+  .side-nav-mobile-open {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 56px;
+    left: 0;
+    width: 260px;
+    max-width: 80vw;
+    height: calc(100vh - 56px);
+    z-index: 60;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.4);
+  }
+  .side-nav-mobile-open .side-nav-top { display: none; }
+}
+
+.side-nav-backdrop {
+  position: fixed;
+  inset: 56px 0 0 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 55;
+}
+@media (min-width: 900px) { .side-nav-backdrop { display: none; } }
+
 .side-nav-top {
   flex-shrink: 0;
   padding: 10px 14px 0;
@@ -238,6 +263,14 @@ input, textarea { font-family: inherit; }
   letter-spacing: 0.04em;
   padding: 4px 10px;
 }
+/* Author link/badge only make sense on the single-post page (post-card-full);
+   hide them everywhere posts are shown as part of a list. */
+.post-author-hide-group { display: inline-flex; align-items: center; gap: 8px; }
+.post-card:not(.post-card-full) .post-author-hide-group,
+.post-row-compact .post-author-hide-group {
+  display: none;
+}
+
 .chevron { transition: transform 0.15s; }
 .chevron.open { transform: rotate(180deg); }
 .side-empty { color: var(--text-muted); padding: 4px 10px; margin: 0; }
@@ -252,7 +285,7 @@ input, textarea { font-family: inherit; }
 }
 @media (min-width: 1000px) { .home-layout { grid-template-columns: 3fr 1fr; } }
 .home-layout .feed { min-width: 0; }
-.home-side { width: 100%; flex-shrink: 0; display: none; flex-direction: column; gap: 16px; }
+.home-side { width: 100%; flex-shrink: 0; display: none; flex-direction: column; gap: 16px; min-height: 100%; }
 @media (min-width: 1000px) { .home-side { display: flex; } }
 
 .right-widget h3 { margin: 0 0 10px; font-size: 12px; color: var(--text-muted); letter-spacing: 0.04em; }
@@ -327,6 +360,19 @@ input, textarea { font-family: inherit; }
   flex-shrink: 0;
 }
 .sub-icon.large { width: 40px; height: 40px; font-size: 18px; }
+
+.star-icon {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px;
+  border-radius: 4px;
+}
+.star-icon:hover { color: var(--text); background: var(--border); }
+.star-icon.star-active { color: #ffd23f; }
 
 .post-sub-link { font-weight: 700; }
 .post-sub-link:hover { text-decoration: underline; }
@@ -789,13 +835,32 @@ input, textarea { font-family: inherit; }
 }
 @media (min-width: 900px) { .profile-page { grid-template-columns: 3fr 1fr; } }
 .profile-main { min-width: 0; max-width: none; }
+
+.profile-banner {
+  height: 120px;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--blue), var(--accent));
+  background-size: cover;
+  background-position: center;
+  margin-bottom: -32px;
+}
+
 .profile-header {
   display: flex;
   align-items: center;
   gap: 16px;
   margin-bottom: 16px;
+  position: relative;
+  padding: 0 4px;
+}
+.profile-header .avatar-dot.large {
+  border: 3px solid var(--bg);
+  box-shadow: 0 0 0 1px var(--border);
 }
 .profile-header h1 { margin: 0; font-size: 22px; }
+.profile-status-line { margin: 4px 0 0; color: var(--text-muted); font-size: 13px; }
+.profile-status-line-centered { text-align: center; }
+.profile-edit-btn { margin-left: auto; align-self: flex-end; }
 
 .profile-tabs {
   display: flex;
@@ -1077,9 +1142,11 @@ input, textarea { font-family: inherit; }
 .notifications-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 14px;
 }
-.notifications-actions .link-btn { font-size: 12px; font-weight: 700; margin-right: 6px; }
+.notifications-actions .link-btn { font-size: 12px; font-weight: 700; }
+.notifications-filter-tabs { display: flex; gap: 4px; }
+.notifications-filter-tabs .feed-tab { padding: 4px 12px; font-size: 12px; }
 
 .notifications-empty {
   display: flex;
@@ -1097,11 +1164,15 @@ input, textarea { font-family: inherit; }
   display: flex;
   align-items: flex-start;
   gap: 12px;
+  width: 100%;
+  text-align: left;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 12px 14px 12px 20px;
+  transition: border-color 0.15s;
 }
+.notification-item:hover { border-color: var(--text-muted); }
 .notification-item.unread { border-color: #2b4a63; background: #16232b; }
 .notification-unread-dot {
   position: absolute;
@@ -1112,8 +1183,28 @@ input, textarea { font-family: inherit; }
   border-radius: 50%;
   background: var(--blue);
 }
+.notification-type-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--border);
+  font-size: 15px;
+}
 .notification-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .notification-title { margin: 0; font-weight: 700; font-size: 13px; }
+.notification-context {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .notification-text {
   margin: 0;
   color: var(--text-muted);
@@ -1531,6 +1622,18 @@ input, textarea { font-family: inherit; }
   margin-bottom: 20px;
 }
 .manage-communities-header h1 { font-size: 20px; margin: 0; }
+.manage-communities-header-actions { display: flex; align-items: center; gap: 10px; }
+
+.manage-communities-filter {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.manage-communities-filter:focus { outline: none; border-color: var(--blue); }
 
 .manage-communities-section { margin-bottom: 24px; }
 .manage-communities-section h2 { font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 10px; }
@@ -1544,9 +1647,12 @@ input, textarea { font-family: inherit; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 10px 14px;
+  transition: border-color 0.15s;
 }
+.manage-community-row:hover { border-color: var(--text-muted); }
 .manage-community-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .manage-community-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.manage-community-actions .star-icon { margin-left: 0; }
 
 .owner-badge {
   display: inline-flex;

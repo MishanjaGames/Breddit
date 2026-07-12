@@ -3,13 +3,22 @@ import { NavLink } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useCreateCommunityModal } from '../context/CreateCommunityModalContext';
+import SideLegal from './SideLegal';
+import { isFavorite, toggleFavorite } from '../utils/favorites';
 
-export default function Sidebar({ collapsed, onToggleSidebar }) {
+export default function Sidebar({ collapsed, onToggleSidebar, mobileOpen, onCloseMobile }) {
   const { user } = useAuth();
   const { openModal: openCreateCommunity } = useCreateCommunityModal();
   const [communities, setCommunities] = useState([]);
   const [recent, setRecent] = useState([]);
   const [open, setOpen] = useState({ recent: true, communities: true, resources: true });
+  const [, forceUpdate] = useState(0);
+
+  useEffect(() => {
+    const onChange = () => forceUpdate((n) => n + 1);
+    window.addEventListener('favorites-changed', onChange);
+    return () => window.removeEventListener('favorites-changed', onChange);
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -26,7 +35,7 @@ export default function Sidebar({ collapsed, onToggleSidebar }) {
 
   const toggle = (key) => setOpen((o) => ({ ...o, [key]: !o[key] }));
 
-  if (collapsed) {
+  if (collapsed && !mobileOpen) {
     return (
       <aside className="side-nav side-nav-collapsed">
         <button className="hamburger-btn" onClick={onToggleSidebar} aria-label="Розгорнути меню">☰</button>
@@ -35,11 +44,11 @@ export default function Sidebar({ collapsed, onToggleSidebar }) {
   }
 
   return (
-    <aside className="side-nav">
+    <aside className={`side-nav ${mobileOpen ? 'side-nav-mobile-open' : ''}`}>
       <div className="side-nav-top">
         <button className="hamburger-btn" onClick={onToggleSidebar} aria-label="Згорнути меню">☰</button>
       </div>
-      <div className="side-nav-scroll">
+      <div className="side-nav-scroll" onClick={(e) => { if (mobileOpen && e.target.closest('a,button.side-link')) onCloseMobile?.(); }}>
         <NavLink to="/" end className={({ isActive }) => `side-link ${isActive ? 'active' : ''}`}>
           <span className="side-icon">🏠</span> Головна
         </NavLink>
@@ -95,7 +104,16 @@ export default function Sidebar({ collapsed, onToggleSidebar }) {
                 <NavLink key={c._id} to={`/r/${encodeURIComponent(c.name)}`} className="side-link">
                   <span className="sub-icon">{c.name[0]?.toUpperCase()}</span>
                   r/{c.name}
-                  {user && <span className="star-icon">☆</span>}
+                  {user && (
+                    <button
+                      type="button"
+                      className={`star-icon ${isFavorite(c._id) ? 'star-active' : ''}`}
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(c._id); }}
+                      title={isFavorite(c._id) ? 'Прибрати з обраного' : 'Додати в обране'}
+                    >
+                      {isFavorite(c._id) ? '★' : '☆'}
+                    </button>
+                  )}
                 </NavLink>
               ))}
               {communities.length === 0 && <p className="side-empty">Немає спільнот</p>}
@@ -108,7 +126,7 @@ export default function Sidebar({ collapsed, onToggleSidebar }) {
             <span>РЕСУРСИ</span>
             <span className={`chevron ${open.resources ? 'open' : ''}`}>˅</span>
           </button>
-          {open.resources && (
+          {/* {open.resources && (
             <div className="side-section-body">
               <span className="side-link static">Про Breddit</span>
               <span className="side-link static">Реклама</span>
@@ -119,16 +137,19 @@ export default function Sidebar({ collapsed, onToggleSidebar }) {
               <span className="side-link static">Кар'єра</span>
               <span className="side-link static">Преса</span>
             </div>
+          )} */}
+          {open.resources && (
+            <div className="side-section-body">
+              <span className="side-link static">Про Breddit</span>
+              <span className="side-link static">Правила Breddit</span>
+              <span className="side-link static">Політика конфіденційності</span>
+              <span className="side-link static">Угода користувача</span>
+              <span className="side-link static">Доступність <em className="beta-tag">BETA</em></span>
+            </div>
           )}
         </div>
 
-        <div className="side-legal">
-          <span>Правила Breddit</span>
-          <span>Політика конфіденційності</span>
-          <span>Угода користувача</span>
-          <span>Доступність</span>
-          <p>Breddit, Inc. © 2026. Усі права захищено.</p>
-        </div>
+        <SideLegal />
       </div>
     </aside>
   );

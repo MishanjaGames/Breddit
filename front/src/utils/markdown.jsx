@@ -3,6 +3,44 @@
 // > quotes, - / 1. lists, [text](url), and paragraph/line breaks.
 // Not a full CommonMark implementation — intentionally small and safe (no raw HTML passthrough).
 
+import { useEffect, useRef } from 'react';
+import api from '../api/client';
+
+const ID_RE = /^[0-9a-fA-F]{24}$/;
+const nicknameCache = new Map(); // id -> nickname (module-level, persists across renders)
+
+function resolveUserLinks(node) {
+  if (!node) return;
+  const links = node.querySelectorAll('a[href*="/user/"]');
+  const idsToFetch = new Set();
+
+  const applyKnown = (a) => {
+    const m = a.getAttribute('href').match(/\/user\/([^/?#]+)/);
+    const id = m?.[1];
+    if (id && nicknameCache.has(id)) {
+      const nick = nicknameCache.get(id);
+      a.textContent = `u/${nick}`;
+      a.setAttribute('href', a.getAttribute('href').replace(id, nick));
+      return true;
+    }
+    return false;
+  };
+
+  links.forEach((a) => {
+    const m = a.getAttribute('href').match(/\/user\/([^/?#]+)/);
+    const id = m?.[1];
+    if (id && ID_RE.test(id) && !applyKnown(a)) idsToFetch.add(id);
+  });
+
+  if (idsToFetch.size === 0) return;
+  api.get('/users/resolve', { params: { ids: [...idsToFetch].join(',') } })
+    .then(({ data }) => {
+      (data.users || []).forEach((u) => nicknameCache.set(u.id, u.nickname));
+      links.forEach(applyKnown);
+    })
+    .catch(() => {});
+}
+
 function escapeHtml(str) {
   return str
     .replace(/&/g, '&amp;')
@@ -119,9 +157,12 @@ export function renderMarkdown(src) {
 }
 
 export default function MarkdownText({ text, className }) {
+  const ref = useRef(null);
+  useEffect(() => { resolveUserLinks(ref.current); }, [text]);
   if (!text) return null;
   return (
     <div
+      ref={ref}
       className={`markdown-body ${className || ''}`}
       dangerouslySetInnerHTML={{ __html: renderMarkdown(text) }}
     />
