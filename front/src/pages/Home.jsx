@@ -10,13 +10,13 @@ import SideLegal from '../components/SideLegal';
 import { useAuth } from '../context/AuthContext';
 
 // mode drives the base query sent to the backend + the empty-state copy.
-// 'best'    -> / (feed=all, default sort unless overridden)
+// 'best'    -> / (feed=all)
 // 'popular' -> /popular (feed=popular)
-// 'news'    -> /news (feed=all, sort forced to 'new')
+// 'news'    -> /news (feed=news: posts from communities tagged "news")
 const MODE_CONFIG = {
   best: { feed: 'all', defaultSort: 'hot', emptyText: 'Тут поки що порожньо.' },
   popular: { feed: 'popular', defaultSort: 'hot', emptyText: 'Поки немає популярних постів.' },
-  news: { feed: 'news', defaultSort: 'new', emptyText: 'Свіжих постів поки немає.', lockSort: true },
+  news: { feed: 'news', defaultSort: 'hot', emptyText: 'Немає постів у спільнотах з тегом news.' },
 };
 
 export default function Home({ mode = 'best' }) {
@@ -24,7 +24,7 @@ export default function Home({ mode = 'best' }) {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const config = MODE_CONFIG[mode] || MODE_CONFIG.best;
-  const sort = config.lockSort ? 'new' : (params.get('sort') || config.defaultSort);
+  const sort = params.get('sort') || config.defaultSort;
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -56,7 +56,7 @@ export default function Home({ mode = 'best' }) {
       <div className="feed">
         <PostListControls
           sort={sort}
-          onSortChange={config.lockSort ? undefined : setSort}
+          onSortChange={setSort}
           view={view}
           onViewChange={setView2}
         />

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import timeAgo from '../utils/timeAgo';
@@ -9,6 +9,7 @@ import SideLegal from '../components/SideLegal';
 import EditProfileModal from '../components/EditProfileModal';
 
 const TABS = ['Пости', 'Про акаунт'];
+const PAGE_SIZE = 20;
 
 function formatAge(dateStr) {
   const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
@@ -26,11 +27,15 @@ export default function Profile() {
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
+  const [postsLoadingMore, setPostsLoadingMore] = useState(false);
+  const [postsPage, setPostsPage] = useState(1);
+  const [postsTotalPages, setPostsTotalPages] = useState(1);
   const [tab, setTab] = useState('Пости');
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const sentinelRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,15 +54,43 @@ export default function Profile() {
   useEffect(() => {
     let cancelled = false;
     setPostsLoading(true);
-    api.get(`/posts/author/${encodeURIComponent(nickname)}`, { params: { limit: 100, sort: 'new' } })
+    setPosts([]);
+    setPostsPage(1);
+    api.get(`/posts/author/${encodeURIComponent(nickname)}`, { params: { limit: PAGE_SIZE, page: 1, sort: 'new' } })
       .then(({ data }) => {
         if (cancelled) return;
         setPosts(Array.isArray(data) ? data : (data.posts || []));
+        setPostsTotalPages(data.totalPages || 1);
       })
       .catch(() => { if (!cancelled) setPosts([]); })
       .finally(() => { if (!cancelled) setPostsLoading(false); });
     return () => { cancelled = true; };
   }, [nickname]);
+
+  const loadMorePosts = useCallback(() => {
+    if (postsLoadingMore || postsPage >= postsTotalPages) return;
+    const nextPage = postsPage + 1;
+    setPostsLoadingMore(true);
+    api.get(`/posts/author/${encodeURIComponent(nickname)}`, { params: { limit: PAGE_SIZE, page: nextPage, sort: 'new' } })
+      .then(({ data }) => {
+        const list = Array.isArray(data) ? data : (data.posts || []);
+        setPosts((prev) => [...prev, ...list]);
+        setPostsPage(nextPage);
+        setPostsTotalPages(data.totalPages || 1);
+      })
+      .catch(() => {})
+      .finally(() => setPostsLoadingMore(false));
+  }, [nickname, postsPage, postsTotalPages, postsLoadingMore]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || tab !== 'Пости') return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) loadMorePosts();
+    }, { rootMargin: '400px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMorePosts, tab]);
 
   const toggleFollow = async () => {
     if (!user || followBusy) return;
@@ -92,6 +125,7 @@ export default function Profile() {
   const bannerSrc = mediaUrl(profile.banner);
   const totalKarma = (profile.postKarma ?? 0) + (profile.commentKarma ?? 0);
   const accountAge = profile.createdAt ? formatAge(profile.createdAt) : null;
+  const profileUpdatedRecently = profile.updatedAt && profile.createdAt && profile.updatedAt !== profile.createdAt;
 
   return (
     <div className="profile-page">
@@ -140,10 +174,18 @@ export default function Profile() {
                   <span className="post-sub-link">r/{item.category?.name || 'невідомо'}</span>
                   <span className="post-dot">·</span>
                   <span className="post-meta-text">{timeAgo(item.createdAt)}</span>
+                  {item.updatedAt && item.updatedAt !== item.createdAt && (
+                    <>
+                      <span className="post-dot">·</span>
+                      <span className="edited-label">ред. {timeAgo(item.updatedAt)}</span>
+                    </>
+                  )}
                 </header>
                 <p className="post-desc">{item.title}</p>
               </article>
             ))}
+            <div ref={sentinelRef} />
+            {postsLoadingMore && <p className="feed-status">Завантаження…</p>}
           </div>
         )}
 
@@ -155,67 +197,77 @@ export default function Profile() {
       </div>
 
       <aside className="profile-side">
-        <div className="side-card profile-card">
-          <div className="profile-card-avatar">
+        <div className="side-card profile-card profile-card-v2">
+          <div
+            className="profile-card-banner"
+            style={bannerSrc ? { backgroundImage: `url(${bannerSrc})` } : undefined}
+          />
+          <div className="profile-card-avatar profile-card-avatar-v2">
             {avatarSrc ? (
               <img className="avatar-dot large" src={avatarSrc} alt="" />
             ) : (
               <span className="avatar-dot large">{nickname?.[0]?.toUpperCase()}</span>
             )}
           </div>
-          <h3>{nickname}</h3>
-          <span className="post-meta-text">u/{nickname}</span>
-          {profile.status && <p className="profile-status-line profile-status-line-centered">{profile.status}</p>}
 
-          {isOwn && (
-            <div className="profile-card-actions">
-              <button className="btn btn-outline btn-sm btn-block" onClick={() => setEditOpen(true)}>
-                ✎ Редагувати профіль
-              </button>
-            </div>
-          )}
+          <div className="profile-card-body">
+            <h3>{nickname}</h3>
+            <span className="post-meta-text">u/{nickname}</span>
+            {profile.status && <p className="profile-status-line profile-status-line-centered">{profile.status}</p>}
 
-          {!isOwn && user && (
-            <div className="profile-card-actions">
+            <div className="profile-card-actions profile-card-actions-row">
               <button
-                className={`btn btn-sm btn-block ${following ? 'btn-outline' : 'btn-primary'}`}
-                onClick={toggleFollow}
-                disabled={followBusy}
+                className="btn btn-outline btn-sm"
+                onClick={() => {
+                  navigator.clipboard?.writeText(window.location.href).catch(() => {});
+                  toast.success('Посилання скопійовано');
+                }}
               >
-                {following ? 'Ви підписані' : 'Підписатись'}
+                ⇗ Поділитись
               </button>
+              {isOwn && (
+                <button className="btn btn-outline btn-sm" onClick={() => setEditOpen(true)}>
+                  ✎ Редагувати
+                </button>
+              )}
+              {!isOwn && user && (
+                <button
+                  className={`btn btn-sm ${following ? 'btn-outline' : 'btn-primary'}`}
+                  onClick={toggleFollow}
+                  disabled={followBusy}
+                >
+                  {following ? 'Ви підписані' : 'Підписатись'}
+                </button>
+              )}
             </div>
-          )}
 
-          <div className="profile-stats">
-            <div>
-              <strong>{totalKarma}</strong>
-              <span>Карма</span>
-            </div>
-            <div>
-              <strong>{profile.postCount ?? 0}</strong>
-              <span>Пости</span>
-            </div>
-            <div>
-              <strong>{profile.commentCount ?? 0}</strong>
-              <span>Коментарі</span>
-            </div>
-          </div>
+            <p className="profile-follower-line">{profile.followerCount ?? 0} підписників</p>
 
-          <div className="profile-stats">
-            <div>
-              <strong>{profile.followerCount ?? 0}</strong>
-              <span>Підписники</span>
-            </div>
-            <div>
-              <strong>{profile.followingCount ?? 0}</strong>
-              <span>Підписки</span>
-            </div>
-            {accountAge && (
-              <div>
-                <strong>{accountAge}</strong>
-                <span>Вік акаунта</span>
+            <div className="profile-stats-grid">
+              <div className="profile-stats-cell">
+                <strong>{totalKarma}</strong>
+                <span>Карма</span>
               </div>
+              <div className="profile-stats-cell">
+                <strong>{(profile.postCount ?? 0) + (profile.commentCount ?? 0)}</strong>
+                <span>Внесок</span>
+              </div>
+              {accountAge && (
+                <div className="profile-stats-cell">
+                  <strong>{accountAge}</strong>
+                  <span>Вік акаунта</span>
+                </div>
+              )}
+              <div className="profile-stats-cell">
+                <strong>{profile.followingCount ?? 0}</strong>
+                <span>Підписки &gt;</span>
+              </div>
+            </div>
+
+            {profileUpdatedRecently && (
+              <p className="edited-label" style={{ marginTop: 4 }}>
+                Профіль оновлено {timeAgo(profile.updatedAt)}
+              </p>
             )}
           </div>
         </div>

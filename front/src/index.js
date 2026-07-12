@@ -6,7 +6,7 @@ import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { AuthModalProvider } from './context/AuthModalContext';
 import { CreateCommunityModalProvider } from './context/CreateCommunityModalContext';
-import './styles/reddit.css';
+import './reddit.css';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

@@ -7,7 +7,6 @@ import PostMenu from '../components/PostMenu';
 import AuthorBadge, { getAuthorRole } from '../components/AuthorBadge';
 import CommentThread from '../components/CommentThread';
 import MediaGallery from '../components/MediaGallery';
-import PostContent from '../components/PostContent';
 import MediaPicker from '../components/MediaPicker';
 import { buildCommentTree } from '../utils/commentTree';
 import timeAgo from '../utils/timeAgo';
@@ -155,19 +154,14 @@ export default function Post() {
 
           <h1 className="post-title-full">{post.title}</h1>
 
-          {post.content?.length > 0 ? (
-            <PostContent content={post.content} />
-          ) : (
-            <>
-              <MediaGallery media={images} />
-              {post.description && <MarkdownText className="post-desc" text={post.description} />}
-            </>
-          )}
+          <MediaGallery media={images} />
+
+          {post.description && <MarkdownText className="post-desc" text={post.description} />}
 
           <footer className="post-card-foot">
             <VoteButtons score={post.karma} myVote={post.myVote} onVote={handleVote} />
             <span className="post-action-btn">💬 {comments.length}</span>
-            <Link className="post-action-btn" to={`/r/${encodeURIComponent(name)}/p/${encodeURIComponent(title)}/repost`}>↗ Поширити</Link>
+            <button className="post-action-btn">↗ Поширити</button>
           </footer>
         </article>
 

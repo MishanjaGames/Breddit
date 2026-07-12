@@ -35,7 +35,7 @@ export default function Navbar({ onToggleSidebar }) {
   return (
     <nav className="navbar">
       <div className="navbar-left">
-        {user && <button className="hamburger-btn" onClick={onToggleSidebar} aria-label="Меню">☰</button>}
+        <button className="hamburger-btn ham-btn-side" onClick={onToggleSidebar} aria-label="Меню">☰</button>
         <Link className="navbar-brand" to="/">
           <span className="brand-icon">r</span>
           <span className="brand-word">reddit</span>
@@ -53,7 +53,9 @@ export default function Navbar({ onToggleSidebar }) {
       <div className="navbar-actions">
         {user ? (
           <>
-            <button className="btn btn-outline btn-sm create-btn" onClick={openCreateCommunity}>＋ Створити</button>
+            <button className="btn btn-outline btn-sm create-btn" onClick={openCreateCommunity} title="Створити спільноту">
+              ＋<span className="create-btn-label"> Створити</span>
+            </button>
             <Link className="icon-btn notif-btn" to="/notifications" title="Сповіщення">
               🔔
               {hasUnread && <span className="notif-badge"><span className="notif-badge-dot" /></span>}

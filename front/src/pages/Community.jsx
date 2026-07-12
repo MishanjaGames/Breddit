@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/client';
 import { resolveCategoryByName } from '../api/resolve';
@@ -8,8 +8,12 @@ import PostCard from '../components/PostCard';
 import PostRowCompact from '../components/PostRowCompact';
 import PostListControls from '../components/PostListControls';
 import EditCommunityModal from '../components/EditCommunityModal';
+import ModerationPanel from '../components/ModerationPanel';
 import SideLegal from '../components/SideLegal';
 import { mediaUrl } from '../utils/media';
+import { tagDisplay } from '../utils/topics';
+
+const PAGE_SIZE = 20;
 
 function formatCreatedDate(value) {
   if (!value) return null;
@@ -27,16 +31,24 @@ export default function Community() {
   const [category, setCategory] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [joined, setJoined] = useState(false);
   const [sort, setSort] = useState('hot');
   const [view, setView] = useState(() => localStorage.getItem('feedView') || 'card');
   const [editOpen, setEditOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null); // 'avatar' | 'banner' | 'name' | null
   const [rulesOpen, setRulesOpen] = useState({});
+  const [modOpen, setModOpen] = useState(false);
+  const [mobileTab, setMobileTab] = useState('posts'); // 'posts' | 'about' — only used below 900px
+  const sentinelRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setPosts([]);
+    setPage(1);
     resolveCategoryByName(name).then((cat) => {
       if (cancelled) return;
       setCategory(cat);
@@ -47,18 +59,45 @@ export default function Community() {
           const next = [cat.name, ...prev.filter((n) => n !== cat.name)].slice(0, 8);
           localStorage.setItem('recentCommunities', JSON.stringify(next));
         } catch { /* ignore */ }
-        api.get(`/posts/category/${cat._id}`, { params: { sort, limit: 300 } })
+        api.get(`/posts/category/${cat._id}`, { params: { sort, page: 1, limit: PAGE_SIZE } })
           .then(({ data }) => {
             if (cancelled) return;
             const list = Array.isArray(data) ? data : (data.posts || []);
             const filtered = list.filter((p) => (p.category?._id || p.category) === cat._id);
             setPosts(filtered);
+            setTotalPages(data.totalPages || 1);
           })
           .catch(() => {});
       }
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [name, sort]);
+
+  const loadMore = useCallback(() => {
+    if (!category || loadingMore || page >= totalPages) return;
+    const nextPage = page + 1;
+    setLoadingMore(true);
+    api.get(`/posts/category/${category._id}`, { params: { sort, page: nextPage, limit: PAGE_SIZE } })
+      .then(({ data }) => {
+        const list = Array.isArray(data) ? data : (data.posts || []);
+        const filtered = list.filter((p) => (p.category?._id || p.category) === category._id);
+        setPosts((prev) => [...prev, ...filtered]);
+        setPage(nextPage);
+        setTotalPages(data.totalPages || 1);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingMore(false));
+  }, [category, sort, page, totalPages, loadingMore]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) loadMore();
+    }, { rootMargin: '400px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   const setView2 = (v) => {
     setView(v);
@@ -136,6 +175,7 @@ export default function Community() {
   const creatorId = category.creator?._id || category.creator;
   const isOwner = !!(user && creatorId && creatorId === user._id);
   const createdLabel = formatCreatedDate(category.createdAt);
+  const updatedLabel = formatCreatedDate(category.updatedAt);
 
   return (
     <div className="community-page">
@@ -194,7 +234,7 @@ export default function Community() {
               </Link>
             )}
             {isOwner && (
-              <button className="btn btn-outline btn-sm" onClick={() => openEdit('name')}>
+              <button className="btn btn-outline btn-sm" onClick={() => setModOpen(true)}>
                 🛠 Mod Tools
               </button>
             )}
@@ -210,13 +250,32 @@ export default function Community() {
         )}
         {category.tags?.length > 0 && (
           <div className="community-tag-list">
-            {category.tags.map((t) => <span key={t} className="community-tag">{t}</span>)}
+            {category.tags.map((t) => (
+              <Link key={t} to={`/tags/${encodeURIComponent(t)}`} className="community-tag">{tagDisplay(t)}</Link>
+            ))}
           </div>
         )}
       </header>
 
+      <div className="community-mobile-tabs">
+        <button
+          type="button"
+          className={`community-mobile-tab ${mobileTab === 'posts' ? 'active' : ''}`}
+          onClick={() => setMobileTab('posts')}
+        >
+          Posts
+        </button>
+        <button
+          type="button"
+          className={`community-mobile-tab ${mobileTab === 'about' ? 'active' : ''}`}
+          onClick={() => setMobileTab('about')}
+        >
+          About
+        </button>
+      </div>
+
       <div className="community-body">
-        <div className="feed-content">
+        <div className={`feed-content ${mobileTab === 'about' ? 'community-mobile-hidden' : ''}`}>
           <PostListControls sort={sort} onSortChange={setSort} view={view} onViewChange={setView2} />
           <div className={view === 'compact' ? 'post-list post-list-compact' : 'post-list'}>
             {posts.length === 0 && <p className="feed-status">У цій спільноті ще немає постів.</p>}
@@ -226,8 +285,10 @@ export default function Community() {
                 : <PostCard key={post._id} post={post} />
             ))}
           </div>
+          <div ref={sentinelRef} />
+          {loadingMore && <p className="feed-status">Завантаження…</p>}
         </div>
-        <aside className="community-side">
+        <aside className={`community-side ${mobileTab === 'about' ? 'community-mobile-visible' : ''}`}>
           <div className="side-card community-about-card">
             <div className="side-card-head-row">
               <h3>{category.name}</h3>
@@ -241,6 +302,11 @@ export default function Community() {
               {createdLabel && (
                 <span className="community-meta-row">
                   <span className="side-icon">🗓</span> Created {createdLabel}
+                </span>
+              )}
+              {updatedLabel && updatedLabel !== createdLabel && (
+                <span className="community-meta-row edited-label">
+                  <span className="side-icon">✎</span> Оновлено {updatedLabel}
                 </span>
               )}
             </div>
@@ -315,6 +381,10 @@ export default function Community() {
           onClose={() => setEditOpen(false)}
           onSaved={handleSaved}
         />
+      )}
+
+      {modOpen && (
+        <ModerationPanel category={category} onClose={() => setModOpen(false)} />
       )}
     </div>
   );

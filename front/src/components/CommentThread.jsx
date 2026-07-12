@@ -9,7 +9,7 @@ import MediaPicker from './MediaPicker';
 import MarkdownEditor from './MarkdownEditor';
 import MarkdownText from '../utils/markdown.jsx';
 
-export default function CommentThread({ comment, postAuthorId, onReplyAdded, depth = 0 }) {
+export default function CommentThread({ comment, postAuthorId, onReplyAdded, depth = 0, targetCommentId }) {
   const { user } = useAuth();
   const [score, setScore] = useState(comment.karma ?? 0);
   const [myVote, setMyVote] = useState(comment.myVote || null);
@@ -64,7 +64,10 @@ export default function CommentThread({ comment, postAuthorId, onReplyAdded, dep
   };
 
   return (
-    <div className={`comment-node depth-${Math.min(depth, 6)}`}>
+    <div
+      className={`comment-node depth-${Math.min(depth, 6)} ${targetCommentId === comment._id ? 'comment-target' : ''}`}
+      id={`comment-${comment._id}`}
+    >
       <div className="comment">
         <div className="comment-head">
           <button
@@ -133,6 +136,7 @@ export default function CommentThread({ comment, postAuthorId, onReplyAdded, dep
               postAuthorId={postAuthorId}
               onReplyAdded={onReplyAdded}
               depth={depth + 1}
+              targetCommentId={targetCommentId}
             />
           ))}
         </div>

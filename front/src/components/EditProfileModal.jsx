@@ -9,63 +9,93 @@ export default function EditProfileModal({ profile, onClose, onSaved }) {
   const [bio, setBio] = useState(profile.bio || '');
   const [avatarPreview, setAvatarPreview] = useState(mediaUrl(profile.avatar));
   const [bannerPreview, setBannerPreview] = useState(mediaUrl(profile.banner));
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [bannerFile, setBannerFile] = useState(null);
   const [busy, setBusy] = useState(null); // null | 'tab' | 'all'
   const [error, setError] = useState('');
   const [savedTab, setSavedTab] = useState(null);
+  const [avatarStatus, setAvatarStatus] = useState(''); // autosave status text
+  const [bannerStatus, setBannerStatus] = useState('');
   const avatarInputRef = useRef(null);
   const bannerInputRef = useRef(null);
 
+  // baseline snapshot of the info tab (avatar/banner autosave immediately, so they're never "dirty")
+  const initialInfo = useRef({ nickname: profile.nickname || '', status: profile.status || '', bio: profile.bio || '' });
+  const infoDirty = nickname !== initialInfo.current.nickname || status !== initialInfo.current.status || bio !== initialInfo.current.bio;
+
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e) => { if (e.key === 'Escape') requestClose(); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [infoDirty]);
 
-  const pickFile = (file, setPreview, setFile) => {
-    if (!file) return;
-    setFile(file);
-    const reader = new FileReader();
-    reader.onload = () => setPreview(reader.result);
-    reader.readAsDataURL(file);
+  const requestClose = () => {
+    if (infoDirty) {
+      if (!window.confirm('У вас є незбережені зміни профілю. Закрити без збереження?')) return;
+    }
+    onClose();
   };
 
   const saveInfo = async () => {
     const { data } = await api.put('/users/me', { nickname, status, bio });
     onSaved?.(data.user);
+    initialInfo.current = { nickname, status, bio };
     return data.user;
   };
 
-  const saveAvatar = async () => {
-    if (!avatarFile) return null;
-    const form = new FormData();
-    form.append('avatar', avatarFile);
-    const { data } = await api.put('/users/me/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } });
-    onSaved?.({ avatar: data.avatar });
-    setAvatarFile(null);
-    return data;
+  // autosave: fires immediately on file pick, no "Зберегти" step needed
+  const autoSaveAvatar = async (file) => {
+    setAvatarStatus('Завантаження…');
+    try {
+      const form = new FormData();
+      form.append('avatar', file);
+      const { data } = await api.put('/users/me/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      onSaved?.({ avatar: data.avatar });
+      setAvatarStatus('Збережено ✓');
+      setTimeout(() => setAvatarStatus(''), 1500);
+    } catch (err) {
+      setAvatarStatus('');
+      setError(err?.response?.data?.message || 'Не вдалося зберегти аватар');
+    }
   };
 
-  const saveBanner = async () => {
-    if (!bannerFile) return null;
-    const form = new FormData();
-    form.append('banner', bannerFile);
-    const { data } = await api.put('/users/me/banner', form, { headers: { 'Content-Type': 'multipart/form-data' } });
-    onSaved?.({ banner: data.banner });
-    setBannerFile(null);
-    return data;
+  const autoSaveBanner = async (file) => {
+    setBannerStatus('Завантаження…');
+    try {
+      const form = new FormData();
+      form.append('banner', file);
+      const { data } = await api.put('/users/me/banner', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      onSaved?.({ banner: data.banner });
+      setBannerStatus('Збережено ✓');
+      setTimeout(() => setBannerStatus(''), 1500);
+    } catch (err) {
+      setBannerStatus('');
+      setError(err?.response?.data?.message || 'Не вдалося зберегти банер');
+    }
   };
 
-  // save only the currently open tab
+  const pickAvatar = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setAvatarPreview(reader.result);
+    reader.readAsDataURL(file);
+    autoSaveAvatar(file);
+  };
+
+  const pickBanner = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setBannerPreview(reader.result);
+    reader.readAsDataURL(file);
+    autoSaveBanner(file);
+  };
+
+  // save only the info tab
   const saveTab = async () => {
     setBusy('tab');
     setError('');
     setSavedTab(null);
     try {
-      if (tab === 'info') await saveInfo();
-      if (tab === 'avatar') await saveAvatar();
-      if (tab === 'banner') await saveBanner();
+      await saveInfo();
       setSavedTab(tab);
       setTimeout(() => setSavedTab((t) => (t === tab ? null : t)), 1500);
     } catch (err) {
@@ -75,15 +105,13 @@ export default function EditProfileModal({ profile, onClose, onSaved }) {
     }
   };
 
-  // save every tab's changes at once, then close
+  // save info and close (avatar/banner already autosaved)
   const saveAll = async (e) => {
     e.preventDefault();
     setBusy('all');
     setError('');
     try {
       await saveInfo();
-      await saveAvatar();
-      await saveBanner();
       onClose();
     } catch (err) {
       setError(err?.response?.data?.message || 'Не вдалося зберегти зміни');
@@ -93,15 +121,15 @@ export default function EditProfileModal({ profile, onClose, onSaved }) {
   };
 
   const TABS = [
-    { key: 'info', label: 'Профіль' },
+    { key: 'info', label: 'Профіль', dirty: infoDirty },
     { key: 'avatar', label: 'Аватар' },
     { key: 'banner', label: 'Банер' },
   ];
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={requestClose}>
       <div className="modal-card modal-card-wide" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose} aria-label="Закрити">✕</button>
+        <button className="modal-close" onClick={requestClose} aria-label="Закрити">✕</button>
         <form className="edit-community-card" onSubmit={saveAll}>
           <h1>Редагувати профіль</h1>
           {error && <p className="auth-error">{error}</p>}
@@ -115,6 +143,7 @@ export default function EditProfileModal({ profile, onClose, onSaved }) {
                 onClick={() => setTab(t.key)}
               >
                 {t.label}
+                {t.dirty && <span className="unsaved-dot" title="Незбережені зміни" />}
               </button>
             ))}
           </div>
@@ -161,11 +190,12 @@ export default function EditProfileModal({ profile, onClose, onSaved }) {
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/gif"
                 hidden
-                onChange={(e) => pickFile(e.target.files?.[0], setAvatarPreview, setAvatarFile)}
+                onChange={(e) => pickAvatar(e.target.files?.[0])}
               />
               <button type="button" className="btn btn-outline btn-sm file-btn" onClick={() => avatarInputRef.current?.click()}>
                 Завантажити аватар
               </button>
+              <p className="autosave-status">{avatarStatus}</p>
             </div>
           )}
 
@@ -177,27 +207,30 @@ export default function EditProfileModal({ profile, onClose, onSaved }) {
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/gif"
                 hidden
-                onChange={(e) => pickFile(e.target.files?.[0], setBannerPreview, setBannerFile)}
+                onChange={(e) => pickBanner(e.target.files?.[0])}
               />
               <button type="button" className="btn btn-outline btn-sm file-btn" onClick={() => bannerInputRef.current?.click()}>
                 Завантажити банер
               </button>
+              <p className="autosave-status">{bannerStatus}</p>
             </div>
           )}
 
-          <div className="edit-community-actions">
-            <button
-              type="button"
-              className="btn btn-outline"
-              onClick={saveTab}
-              disabled={busy !== null}
-            >
-              {busy === 'tab' ? 'Збереження…' : savedTab === tab ? 'Збережено ✓' : 'Зберегти цю вкладку'}
-            </button>
-            <button className="btn btn-primary" type="submit" disabled={busy !== null}>
-              {busy === 'all' ? 'Збереження…' : 'Зберегти все'}
-            </button>
-          </div>
+          {tab === 'info' && (
+            <div className="edit-community-actions">
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={saveTab}
+                disabled={busy !== null}
+              >
+                {busy === 'tab' ? 'Збереження…' : savedTab === tab ? 'Збережено ✓' : 'Зберегти цю вкладку'}
+              </button>
+              <button className="btn btn-primary" type="submit" disabled={busy !== null}>
+                {busy === 'all' ? 'Збереження…' : 'Зберегти і закрити'}
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>

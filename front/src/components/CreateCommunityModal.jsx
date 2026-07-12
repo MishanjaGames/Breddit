@@ -3,19 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { useCreateCommunityModal } from '../context/CreateCommunityModalContext';
-
-const TOPICS = [
-  ['🎭', 'Anime & Cosplay'], ['🎨', 'Art'], ['💼', 'Business & Finance'],
-  ['🧩', 'Collectibles & Other Hobbies'], ['🎓', 'Education & Career'],
-  ['👗', 'Fashion & Beauty'], ['🍔', 'Food & Drinks'], ['🎮', 'Games'],
-  ['❤️', 'Health'], ['🏡', 'Home & Garden'], ['📜', 'Humanities & Law'],
-  ['💞', 'Identity & Relationships'], ['🌐', 'Internet Culture'], ['🎬', 'Movies & TV'],
-  ['🎵', 'Music'], ['🌲', 'Nature & Outdoors'], ['📰', 'News & Politics'],
-  ['✈️', 'Places & Travel'], ['✨', 'Pop Culture'], ['❓', 'Q&As & Stories'],
-  ['📚', 'Reading & Writing'], ['🔬', 'Sciences'], ['👻', 'Spooky'],
-  ['🏅', 'Sports'], ['🚗', 'Vehicles'], ['🧘', 'Wellness'],
-  ['🔞', 'Adult Content'], ['🗿', 'Mature Topics'],
-];
+import { TOPICS, MAX_TAGS } from '../utils/topics';
 
 const STEPS = ['topic', 'type', 'details'];
 
@@ -87,19 +75,19 @@ export default function CreateCommunityModal() {
           {step === 0 && (
             <div className="create-community-step">
               <h1>What will your community be about?</h1>
-              <p className="create-community-subtitle">Choose up to 3 topics to help redditors discover your community</p>
+              <p className="create-community-subtitle">Choose up to {MAX_TAGS} topics to help redditors discover your community</p>
               <div className="topic-grid">
-                {TOPICS.map(([icon, label]) => {
-                  const active = topics.includes(label);
+                {TOPICS.map(([icon, label, key]) => {
+                  const active = topics.includes(key);
                   return (
                     <button
                       type="button"
-                      key={label}
+                      key={key}
                       className={`topic-chip ${active ? 'active' : ''}`}
                       onClick={() => setTopics((prev) => (
-                        active ? prev.filter((t) => t !== label) : prev.length < 3 ? [...prev, label] : prev
+                        active ? prev.filter((t) => t !== key) : prev.length < MAX_TAGS ? [...prev, key] : prev
                       ))}
-                      disabled={!active && topics.length >= 3}
+                      disabled={!active && topics.length >= MAX_TAGS}
                     >
                       <span>{icon}</span> {label}
                     </button>
