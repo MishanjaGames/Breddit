@@ -5,11 +5,13 @@ import { useAuthModal } from '../context/AuthModalContext';
 import { useCreateCommunityModal } from '../context/CreateCommunityModalContext';
 import UserMenu from './UserMenu';
 import api from '../api/client';
+import { useSocket } from '../context/SocketContext';
 
 export default function Navbar({ onToggleSidebar }) {
   const { user } = useAuth();
   const { openLogin, openRegister } = useAuthModal();
   const { openModal: openCreateCommunity } = useCreateCommunityModal();
+  const { socket } = useSocket();
   const [q, setQ] = useState('');
   const [hasUnread, setHasUnread] = useState(false);
   const navigate = useNavigate();
@@ -22,10 +24,18 @@ export default function Navbar({ onToggleSidebar }) {
         .then(({ data }) => { if (!cancelled) setHasUnread((data.unreadCount ?? 0) > 0); })
         .catch(() => {});
     };
-    check();
-    const interval = setInterval(check, 30000);
-    return () => { cancelled = true; clearInterval(interval); };
+    check(); // initial load only — after this, live updates come over the socket, no more polling
+    return () => { cancelled = true; };
   }, [user]);
+
+  // real-time: server pushes 'notification:new' whenever something happens for this user
+  // (reply, mention, upvote, follow, saved-post activity) instead of us polling every 30s
+  useEffect(() => {
+    if (!socket || !user) return;
+    const onNewNotification = () => setHasUnread(true);
+    socket.on('notification:new', onNewNotification);
+    return () => socket.off('notification:new', onNewNotification);
+  }, [socket, user]);
 
   const submitSearch = (e) => {
     e.preventDefault();
@@ -37,8 +47,8 @@ export default function Navbar({ onToggleSidebar }) {
       <div className="navbar-left">
         <button className="hamburger-btn ham-btn-side" onClick={onToggleSidebar} aria-label="Меню">☰</button>
         <Link className="navbar-brand" to="/">
-          <span className="brand-icon">r</span>
-          <span className="brand-word">reddit</span>
+          <span className="brand-icon">Br</span>
+          <span className="brand-word">Breddit</span>
         </Link>
       </div>
       <form className="navbar-search" onSubmit={submitSearch}>

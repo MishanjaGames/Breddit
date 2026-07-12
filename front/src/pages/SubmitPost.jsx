@@ -41,13 +41,14 @@ export default function SubmitPost() {
     return () => { cancelled = true; };
   }, [name]);
 
-  // load draft content (title/description text only — files can't be persisted to localStorage)
+  // load full draft content — text blocks and any previously-uploaded media blocks (existingUrl)
   useEffect(() => {
     if (!draftId) return;
     const draft = getDraft(draftId);
     if (draft) {
       setTitle(draft.title || '');
-      setBlocks([{ id: nextId(), type: 'text', text: draft.description || '' }]);
+      const restored = (draft.blocks || []).map((b) => ({ ...b, id: b.id || nextId() }));
+      setBlocks(restored.length > 0 ? restored : [{ id: nextId(), type: 'text', text: '' }]);
       if (draft.community && !name) {
         resolveCategoryByName(draft.community).then((cat) => { if (cat) setCategory(cat); });
       }
@@ -74,10 +75,16 @@ export default function SubmitPost() {
     if (!title.trim() || !category) return;
     setBusy(true);
     try {
-      const contentSpec = blocks.map((b) => (
-        b.type === 'text' ? { type: 'text', text: b.text } : { type: b.type }
-      ));
-      const orderedFiles = blocks.filter((b) => b.type !== 'text' && b.file).map((b) => b.file);
+      const contentSpec = blocks.map((b) => {
+        if (b.type === 'text') return { type: 'text', text: b.text };
+        if (b.existingUrl) {
+          // media already uploaded earlier (e.g. saved in a draft) — reference it directly, no file to (re)upload
+          return { type: b.type, existingUrl: b.existingUrl, mimeType: b.mimeType, size: b.size, originalName: b.originalName };
+        }
+        return { type: b.type };
+      });
+      // only newly-picked files need uploading now; existingUrl blocks are already on the server
+      const orderedFiles = blocks.filter((b) => b.type !== 'text' && b.file && !b.existingUrl).map((b) => b.file);
 
       const form = new FormData();
       form.append('title', title);
@@ -98,14 +105,45 @@ export default function SubmitPost() {
     }
   };
 
-  const saveAsDraft = () => {
+  const saveAsDraft = async () => {
     const firstText = blocks.find((b) => b.type === 'text')?.text || '';
-    if (!title.trim() && !firstText.trim()) return;
+    const hasMedia = blocks.some((b) => b.type !== 'text' && (b.file || b.existingUrl));
+    if (!title.trim() && !firstText.trim() && !hasMedia) return;
     setSavingDraft(true);
     try {
-      const draft = saveDraft({ id: currentDraftId, community: category?.name || '', title, description: firstText });
+      // upload any newly-picked files (blocks that don't already have a server URL) so the draft
+      // can be fully serialized to localStorage and its media can be edited/removed later
+      const toUpload = blocks.filter((b) => b.type !== 'text' && b.file && !b.existingUrl);
+      let uploaded = [];
+      if (toUpload.length > 0) {
+        const form = new FormData();
+        toUpload.forEach((b) => form.append('media', b.file));
+        const { data } = await api.post('/posts/draft-media', form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        uploaded = data.media || [];
+      }
+
+      let uploadIdx = 0;
+      const serializableBlocks = blocks.map((b) => {
+        if (b.type === 'text') return { id: b.id, type: 'text', text: b.text };
+        if (b.existingUrl) {
+          return { id: b.id, type: b.type, existingUrl: b.existingUrl, mimeType: b.mimeType, size: b.size, originalName: b.originalName };
+        }
+        if (b.file) {
+          const info = uploaded[uploadIdx];
+          uploadIdx += 1;
+          if (!info) return null; // upload failed for this file — drop the empty block
+          return { id: b.id, type: b.type, existingUrl: info.url, mimeType: info.mimeType, size: info.size, originalName: info.originalName || b.file.name };
+        }
+        return null; // empty media block (no file picked yet) — nothing to persist
+      }).filter(Boolean);
+
+      const draft = saveDraft({ id: currentDraftId, community: category?.name || '', title, blocks: serializableBlocks });
       setCurrentDraftId(draft.id);
       toast.success('Чернетку збережено');
+    } catch {
+      toast.error('Не вдалося зберегти чернетку');
     } finally {
       setSavingDraft(false);
     }

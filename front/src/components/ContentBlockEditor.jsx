@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import MarkdownEditor from './MarkdownEditor';
+import { mediaUrl } from '../utils/media';
 
 const FILE_TYPE_LABELS = {
   image: 'Зображення',
@@ -70,13 +71,24 @@ function MediaBlock({ block, onFile, onRemove }) {
     );
   }
 
-  const previewUrl = block.file ? URL.createObjectURL(block.file) : block.existingUrl;
+  const previewUrl = block.file ? URL.createObjectURL(block.file) : mediaUrl(block.existingUrl);
   const name = block.file?.name || block.originalName || 'файл';
+
+  const replaceInput = (
+    <input
+      ref={inputRef}
+      type="file"
+      hidden
+      accept={ACCEPT_BY_TYPE[block.type]}
+      onChange={(e) => { handleFiles(e.target.files); e.target.value = ''; }}
+    />
+  );
 
   if (block.type === 'image') {
     return (
       <div className="content-block content-block-media">
-        <img src={previewUrl} alt="" />
+        <img src={previewUrl} alt="" onClick={() => inputRef.current?.click()} />
+        {replaceInput}
         <button type="button" className="content-block-remove-dot" onClick={onRemove} aria-label="Видалити">✕</button>
       </div>
     );
@@ -86,6 +98,7 @@ function MediaBlock({ block, onFile, onRemove }) {
     return (
       <div className="content-block content-block-media">
         <video src={previewUrl} controls />
+        {replaceInput}
         <button type="button" className="content-block-remove-dot" onClick={onRemove} aria-label="Видалити">✕</button>
       </div>
     );
@@ -99,6 +112,7 @@ function MediaBlock({ block, onFile, onRemove }) {
         <span className="content-block-file-name">{name}</span>
         <span className="post-meta-text">{FILE_TYPE_LABELS.file} · {formatSize(block.file?.size ?? block.size)}</span>
       </div>
+      {replaceInput}
       <button type="button" className="content-block-remove-dot" onClick={onRemove} aria-label="Видалити">✕</button>
     </div>
   );
@@ -146,7 +160,7 @@ export default function ContentBlockEditor({ blocks, onChange }) {
           ) : (
             <MediaBlock
               block={block}
-              onFile={(file) => updateBlock(block.id, { file })}
+              onFile={(file) => updateBlock(block.id, { file, existingUrl: undefined, mimeType: undefined, size: undefined, originalName: undefined })}
               onRemove={() => removeBlock(block.id)}
             />
           )}

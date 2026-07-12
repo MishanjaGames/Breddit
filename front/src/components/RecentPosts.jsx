@@ -1,16 +1,36 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import api from '../api/client';
 import timeAgo from '../utils/timeAgo';
 
 export default function RecentPosts() {
   const [posts, setPosts] = useState([]);
 
   useEffect(() => {
+    let stored = [];
     try {
-      setPosts(JSON.parse(localStorage.getItem('recentPosts') || '[]'));
+      stored = JSON.parse(localStorage.getItem('recentPosts') || '[]');
     } catch {
-      setPosts([]);
+      stored = [];
     }
+    if (stored.length === 0) {
+      setPosts([]);
+      return;
+    }
+    // Validate against the backend — posts (or their community) can be deleted (e.g. DB reset)
+    // while the entry lingers in localStorage, which would otherwise show dead links forever.
+    let cancelled = false;
+    Promise.all(
+      stored.map((p) => api.get(`/posts/${p._id}`).then(() => p).catch(() => null))
+    ).then((results) => {
+      if (cancelled) return;
+      const stillValid = results.filter(Boolean);
+      setPosts(stillValid);
+      if (stillValid.length !== stored.length) {
+        localStorage.setItem('recentPosts', JSON.stringify(stillValid));
+      }
+    });
+    return () => { cancelled = true; };
   }, []);
 
   const clear = () => {

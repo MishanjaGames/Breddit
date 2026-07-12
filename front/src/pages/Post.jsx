@@ -14,12 +14,14 @@ import timeAgo from '../utils/timeAgo';
 import MarkdownText from '../utils/markdown.jsx';
 import MarkdownEditor from '../components/MarkdownEditor';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 
 const COMMENT_SORTS = { best: 'Best', new: 'New', old: 'Old', top: 'Top' };
 
 export default function Post() {
   const { name, title } = useParams();
   const { user } = useAuth();
+  const { socket } = useSocket();
   const [category, setCategory] = useState(null);
   const [post, setPost] = useState(null);
   const [comments, setComments] = useState([]);
@@ -61,6 +63,29 @@ export default function Post() {
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [name, title]);
+
+  // live updates: join this post's room so new comments / vote changes from other
+  // users show up without the client polling GET /comments or /posts on an interval
+  useEffect(() => {
+    if (!socket || !post?._id) return;
+    socket.emit('join:post', post._id);
+
+    const refreshComments = () => {
+      api.get(`/comments/post/${post._id}`).then(({ data }) => setComments(data || [])).catch(() => {});
+    };
+    const refreshPost = () => {
+      api.get(`/posts/${post._id}`).then(({ data }) => setPost((prev) => (prev ? { ...prev, karma: data.karma } : prev))).catch(() => {});
+    };
+
+    socket.on('comment:new', refreshComments);
+    socket.on('vote:update', refreshPost);
+
+    return () => {
+      socket.emit('leave:post', post._id);
+      socket.off('comment:new', refreshComments);
+      socket.off('vote:update', refreshPost);
+    };
+  }, [socket, post?._id]);
 
   const handleVote = async (value) => {
     if (!post) return;
@@ -104,6 +129,12 @@ export default function Post() {
     setComments((prev) => [newComment, ...prev]);
   };
 
+  const handleCommentDeleted = (commentId) => {
+    setComments((prev) => prev.map((c) => (
+      c._id === commentId ? { ...c, text: '[видалено]', media: [], isDeleted: true } : c
+    )));
+  };
+
   const images = useMemo(() => post?.media || [], [post]);
 
   const commentTree = useMemo(() => buildCommentTree(comments), [comments]);
@@ -131,6 +162,12 @@ export default function Post() {
   const authorRole = getAuthorRole(post.author?._id || post.author, {
     postAuthorId: post.author?._id || post.author,
   });
+
+  const creatorId = category?.creator?._id || category?.creator;
+  const isModerator = !!user && (
+    (creatorId && creatorId === user._id) ||
+    (category?.moderators || []).some((m) => (m._id || m) === user._id)
+  );
 
   return (
     <div className="post-detail-layout">
@@ -220,6 +257,8 @@ export default function Post() {
               comment={c}
               postAuthorId={post.author?._id || post.author}
               onReplyAdded={addReply}
+              onDeleted={handleCommentDeleted}
+              isModerator={isModerator}
               depth={0}
             />
           ))}

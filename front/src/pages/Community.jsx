@@ -4,6 +4,7 @@ import api from '../api/client';
 import { resolveCategoryByName } from '../api/resolve';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useSocket } from '../context/SocketContext';
 import PostCard from '../components/PostCard';
 import PostRowCompact from '../components/PostRowCompact';
 import PostListControls from '../components/PostListControls';
@@ -28,6 +29,7 @@ export default function Community() {
   const { name } = useParams();
   const { user } = useAuth();
   const toast = useToast();
+  const { socket } = useSocket();
   const [category, setCategory] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -72,6 +74,25 @@ export default function Community() {
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [name, sort]);
+
+  // live updates: join this community's room so new posts from other users appear
+  // at the top of the feed without polling GET /posts/category on an interval
+  useEffect(() => {
+    if (!socket || !category?._id) return;
+    socket.emit('join:category', category._id);
+
+    const onNewPost = ({ postId }) => {
+      api.get(`/posts/${postId}`).then(({ data }) => {
+        setPosts((prev) => (prev.some((p) => p._id === data._id) ? prev : [data, ...prev]));
+      }).catch(() => {});
+    };
+    socket.on('post:new', onNewPost);
+
+    return () => {
+      socket.emit('leave:category', category._id);
+      socket.off('post:new', onNewPost);
+    };
+  }, [socket, category?._id]);
 
   const loadMore = useCallback(() => {
     if (!category || loadingMore || page >= totalPages) return;

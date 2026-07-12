@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { mediaUrl } from '../utils/media';
 
 export default function UserMenu({ modOn, onToggleMod }) {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -48,6 +50,11 @@ export default function UserMenu({ modOn, onToggleMod }) {
           <Link to="/drafts" className="user-menu-item" onClick={() => setOpen(false)}>
             <span className="user-menu-icon">📝</span> Drafts
           </Link>
+
+          <button className="user-menu-item" onClick={toggleTheme}>
+            <span className="user-menu-icon">{theme === 'light' ? '🌙' : '☀️'}</span>
+            {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+          </button>
 
           <button className="user-menu-item" onClick={() => { setOpen(false); logout(); }}>
             <span className="user-menu-icon">⎋</span> Log Out

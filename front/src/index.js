@@ -6,21 +6,27 @@ import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { AuthModalProvider } from './context/AuthModalContext';
 import { CreateCommunityModalProvider } from './context/CreateCommunityModalContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { SocketProvider } from './context/SocketContext';
 import './reddit.css';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
     <BrowserRouter>
-      <AuthProvider>
-        <ToastProvider>
-          <AuthModalProvider>
-            <CreateCommunityModalProvider>
-              <App />
-            </CreateCommunityModalProvider>
-          </AuthModalProvider>
-        </ToastProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <SocketProvider>
+            <ToastProvider>
+              <AuthModalProvider>
+                <CreateCommunityModalProvider>
+                  <App />
+                </CreateCommunityModalProvider>
+              </AuthModalProvider>
+            </ToastProvider>
+          </SocketProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   </React.StrictMode>
 );

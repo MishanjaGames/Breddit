@@ -10,6 +10,24 @@
   --up: #ff4500;
   --down: #7193ff;
   --radius: 8px;
+  --chip-bg: #2c2d2e;
+  --chip-text: #d7dadc;
+}
+
+[data-theme="light"] {
+  --bg: #dae0e6;
+  --bg-elevated: #ffffff;
+  --border: #ccd0d5;
+  --text: #1a1a1b;
+  --text-muted: #576066;
+  --accent: #ff4500;
+  --accent-hover: #e03d00;
+  --blue: #0079d3;
+  --up: #ff4500;
+  --down: #7193ff;
+  --radius: 8px;
+  --chip-bg: #eef0f2;
+  --chip-text: #1a1a1b;
 }
 
 * { box-sizing: border-box; }
@@ -421,6 +439,32 @@ input, textarea { font-family: inherit; }
 
 .post-desc { color: var(--text); margin: 0 0 10px; line-height: 1.4; }
 
+.post-desc-wrap { position: relative; margin: 0 0 10px; }
+.post-desc-wrap .post-desc { margin: 0; }
+.post-desc-wrap.post-desc-clamped { max-height: 4.2em; overflow: hidden; }
+.post-desc-wrap.post-desc-clamped::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2.4em;
+  background: linear-gradient(to bottom, transparent, var(--bg-elevated));
+  pointer-events: none;
+}
+.post-desc-more {
+  position: relative;
+  z-index: 1;
+  display: block;
+  margin-top: 2px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--blue);
+  cursor: pointer;
+}
+.post-desc-more:hover { text-decoration: underline; }
+
 .post-card-foot {
   display: flex;
   align-items: center;
@@ -459,8 +503,8 @@ input, textarea { font-family: inherit; }
   border-radius: 4px;
 }
 .vote-btn:hover { background: var(--border); }
-.vote-btn.up.active { color: var(--down); }
-.vote-btn.down.active { color: var(--up); }
+.vote-btn.up.active { color: var(--up); }
+.vote-btn.down.active { color: var(--down); }
 .vote-score { font-weight: 700; min-width: 16px; text-align: center; }
 
 /* ---------- Community page ---------- */
@@ -598,6 +642,7 @@ input, textarea { font-family: inherit; }
 .comment-author { font-weight: 700; }
 .comment-author:hover { text-decoration: underline; }
 .comment-text { margin: 0 0 8px; line-height: 1.4; white-space: pre-wrap; }
+.comment-text-deleted { color: var(--text-muted); font-style: italic; }
 
 /* ---------- Author role badges (OP / MOD) ---------- */
 .author-badge {
@@ -668,6 +713,8 @@ input, textarea { font-family: inherit; }
   border-radius: 4px;
 }
 .comment-action-btn:hover { background: var(--border); color: var(--text); }
+.comment-action-danger:hover { background: rgba(255, 69, 0, 0.15); color: var(--accent); }
+.comment-action-danger:disabled { opacity: 0.6; cursor: default; }
 
 .comment-reply-form { margin-top: 8px; padding: 8px; }
 .comment-reply-form textarea { min-height: 56px; }
@@ -770,14 +817,11 @@ input, textarea { font-family: inherit; }
 .auth-card {
   width: 100%;
   max-width: 380px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
+
 .auth-card h1 { font-size: 20px; margin: 0 0 4px; }
 .auth-card label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--text-muted); }
 .auth-card input, .auth-card textarea {
@@ -807,6 +851,20 @@ input, textarea { font-family: inherit; }
   position: relative;
   width: 100%;
   max-width: 380px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  padding: 24px;
+}
+/* These modals nest their own fully-padded/backgrounded card, so avoid double padding */
+.modal-card:has(> .create-community-card),
+.modal-card:has(> form.edit-community-card),
+.modal-card:has(> .edit-community-card) {
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 .modal-close {
   position: absolute;
@@ -824,7 +882,6 @@ input, textarea { font-family: inherit; }
   z-index: 1;
 }
 .modal-close:hover { background: var(--border); }
-.auth-card-modal { box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
 .link-btn {
   background: none;
   border: none;
@@ -1263,7 +1320,7 @@ input, textarea { font-family: inherit; }
   transition: border-color 0.15s;
 }
 .notification-item:hover { border-color: var(--text-muted); }
-.notification-item.unread { border-color: #2b4a63; background: #16232b; }
+.notification-item.unread { border-color: var(--blue); background: rgba(0, 121, 211, 0.1); }
 .notification-unread-dot {
   position: absolute;
   left: 8px;
@@ -1998,7 +2055,8 @@ img.avatar-dot, img.sub-icon {
 .tag-chip-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .tag-chip {
   display: inline-flex; align-items: center; gap: 6px;
-  background: var(--chip-bg, #f0f1f3); border-radius: 999px;
+  background: var(--chip-bg); color: var(--chip-text);
+  border-radius: 999px;
   padding: 4px 8px 4px 12px; font-size: 12px; font-weight: 600;
 }
 .tag-chip button {
@@ -2008,7 +2066,8 @@ img.avatar-dot, img.sub-icon {
 .tag-chip button:hover { opacity: 1; }
 .community-tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
 .community-tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em;
-  background: var(--chip-bg, #f0f1f3); border-radius: 999px; padding: 3px 10px; }
+  background: var(--chip-bg); color: var(--chip-text);
+  border-radius: 999px; padding: 3px 10px; }
 
 /* Edit modal per-tab / save-all actions */
 .edit-community-actions {
@@ -2103,6 +2162,7 @@ img.avatar-dot, img.sub-icon {
 .content-block-media { position: relative; border-radius: var(--radius); overflow: hidden; background: var(--bg-elevated); }
 .content-block-media img,
 .content-block-media video { width: 100%; max-height: 480px; object-fit: contain; display: block; background: #000; }
+.content-block-media img { cursor: pointer; }
 
 .content-block-remove-dot {
   position: absolute;

@@ -14,6 +14,7 @@ export default function PostCard({ post }) {
   const [saved, setSaved] = useState(!!post.isSaved);
   const [saving, setSaving] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const handleVote = async (value) => {
     await api.post('/votes', { targetType: 'Post', targetId: post._id, value });
@@ -65,7 +66,20 @@ export default function PostCard({ post }) {
         {post.title}
       </Link>
 
-      {post.description && <MarkdownText className="post-desc" text={post.description} />}
+      {post.description && (
+        <div className={`post-desc-wrap ${!expanded && post.description.length > 300 ? 'post-desc-clamped' : ''}`}>
+          <MarkdownText className="post-desc" text={post.description} />
+          {!expanded && post.description.length > 300 && (
+            <button
+              type="button"
+              className="post-desc-more"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpanded(true); }}
+            >
+              more...
+            </button>
+          )}
+        </div>
+      )}
 
       <MediaGallery media={post.media} />
 

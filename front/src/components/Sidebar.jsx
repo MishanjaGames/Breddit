@@ -26,11 +26,30 @@ export default function Sidebar({ collapsed, onToggleSidebar, mobileOpen, onClos
     } else {
       api.get('/categories').then(({ data }) => setCommunities((data || []).slice(0, 6))).catch(() => setCommunities([]));
     }
+
+    let storedRecent = [];
     try {
-      setRecent(JSON.parse(localStorage.getItem('recentCommunities') || '[]'));
+      storedRecent = JSON.parse(localStorage.getItem('recentCommunities') || '[]');
     } catch {
-      setRecent([]);
+      storedRecent = [];
     }
+    if (storedRecent.length === 0) {
+      setRecent([]);
+      return;
+    }
+    // Validate against the live backend list — communities can be deleted (e.g. DB reset)
+    // while the name lingers in localStorage, which would otherwise show dead links forever.
+    api.get('/categories').then(({ data }) => {
+      const liveNames = new Set((data || []).map((c) => c.name));
+      const stillValid = storedRecent.filter((n) => liveNames.has(n));
+      setRecent(stillValid);
+      if (stillValid.length !== storedRecent.length) {
+        localStorage.setItem('recentCommunities', JSON.stringify(stillValid));
+      }
+    }).catch(() => {
+      // If validation fails (offline, etc.), fall back to showing what we have rather than hiding it.
+      setRecent(storedRecent);
+    });
   }, [user]);
 
   const toggle = (key) => setOpen((o) => ({ ...o, [key]: !o[key] }));
@@ -103,7 +122,7 @@ export default function Sidebar({ collapsed, onToggleSidebar, mobileOpen, onClos
               {communities.map((c) => (
                 <NavLink key={c._id} to={`/r/${encodeURIComponent(c.name)}`} className="side-link">
                   <span className="sub-icon">{c.name[0]?.toUpperCase()}</span>
-                  r/{c.name}
+                  r/{c.name.slice(0,16)+'...'}
                   {user && (
                     <button
                       type="button"

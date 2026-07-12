@@ -16,17 +16,17 @@ function extLabel(filename) {
   return m ? m[1].toUpperCase() : 'ФАЙЛ';
 }
 
-// groups the ordered block list into runs: consecutive image/video blocks become one carousel run,
-// everything else (text, file) stays its own run
+// groups the ordered block list into runs: consecutive blocks of the SAME media type
+// (image or video, not mixed) become one carousel run, everything else (text, file) stays its own run
 function groupBlocks(content) {
   const groups = [];
   content.forEach((block) => {
     const isMedia = block.type === 'image' || block.type === 'video';
     const last = groups[groups.length - 1];
-    if (isMedia && last?.kind === 'media') {
+    if (isMedia && last?.kind === 'media' && last.mediaType === block.type) {
       last.items.push(block);
     } else if (isMedia) {
-      groups.push({ kind: 'media', items: [block] });
+      groups.push({ kind: 'media', mediaType: block.type, items: [block] });
     } else {
       groups.push({ kind: block.type, items: [block] });
     }

@@ -11,6 +11,25 @@ export default function ModerationPanel({ category, onClose }) {
   const [banInput, setBanInput] = useState('');
   const [muteInput, setMuteInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [bannedUsers, setBannedUsers] = useState([]);
+  const [mutedUsers, setMutedUsers] = useState([]);
+  const [loadingLists, setLoadingLists] = useState(true);
+
+  const loadLists = () => {
+    setLoadingLists(true);
+    api.get(`/categories/${category._id}/moderation-lists`)
+      .then(({ data }) => {
+        setBannedUsers(data?.bannedUsers || []);
+        setMutedUsers(data?.mutedUsers || []);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingLists(false));
+  };
+
+  useEffect(() => {
+    loadLists();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category._id]);
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -65,8 +84,37 @@ export default function ModerationPanel({ category, onClose }) {
       await api.post(`/categories/${category._id}/ban/${userId}`);
       toast.success(`Забанено u/${banInput.trim()}`);
       setBanInput('');
+      loadLists();
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Не вдалося забанити користувача');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const unban = async (userId, nickname) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await api.delete(`/categories/${category._id}/ban/${userId}`);
+      toast.success(`Розбанено u/${nickname}`);
+      loadLists();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Не вдалося розбанити користувача');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const unmute = async (userId, nickname) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await api.delete(`/categories/${category._id}/mute/${userId}`);
+      toast.success(`Знято мут з u/${nickname}`);
+      loadLists();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Не вдалося зняти мут');
     } finally {
       setBusy(false);
     }
@@ -81,6 +129,7 @@ export default function ModerationPanel({ category, onClose }) {
       await api.post(`/categories/${category._id}/mute/${userId}`);
       toast.success(`Замучено u/${muteInput.trim()}`);
       setMuteInput('');
+      loadLists();
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Не вдалося замутити користувача');
     } finally {
@@ -150,6 +199,17 @@ export default function ModerationPanel({ category, onClose }) {
                 </div>
               </label>
               <p className="post-meta-text">Забанений користувач не може постити чи коментувати в цій спільноті.</p>
+
+              {loadingLists && <p className="feed-status">Завантаження…</p>}
+              {!loadingLists && bannedUsers.length === 0 && <p className="post-meta-text">Немає забанених користувачів.</p>}
+              {bannedUsers.map((u) => (
+                <div className="mod-user-row" key={u._id}>
+                  <span>u/{u.nickname}</span>
+                  <button type="button" className="btn btn-outline btn-sm" onClick={() => unban(u._id, u.nickname)} disabled={busy}>
+                    Розбанити
+                  </button>
+                </div>
+              ))}
             </div>
           )}
 
@@ -171,6 +231,17 @@ export default function ModerationPanel({ category, onClose }) {
                 </div>
               </label>
               <p className="post-meta-text">Замучений користувач може постити, але його коментарі приховані.</p>
+
+              {loadingLists && <p className="feed-status">Завантаження…</p>}
+              {!loadingLists && mutedUsers.length === 0 && <p className="post-meta-text">Немає замучених користувачів.</p>}
+              {mutedUsers.map((u) => (
+                <div className="mod-user-row" key={u._id}>
+                  <span>u/{u.nickname}</span>
+                  <button type="button" className="btn btn-outline btn-sm" onClick={() => unmute(u._id, u.nickname)} disabled={busy}>
+                    Зняти мут
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </div>

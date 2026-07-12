@@ -9,7 +9,7 @@ import MediaPicker from './MediaPicker';
 import MarkdownEditor from './MarkdownEditor';
 import MarkdownText from '../utils/markdown.jsx';
 
-export default function CommentThread({ comment, postAuthorId, onReplyAdded, depth = 0, targetCommentId }) {
+export default function CommentThread({ comment, postAuthorId, onReplyAdded, onDeleted, isModerator, depth = 0, targetCommentId }) {
   const { user } = useAuth();
   const [score, setScore] = useState(comment.karma ?? 0);
   const [myVote, setMyVote] = useState(comment.myVote || null);
@@ -18,11 +18,14 @@ export default function CommentThread({ comment, postAuthorId, onReplyAdded, dep
   const [replyText, setReplyText] = useState('');
   const [replyFiles, setReplyFiles] = useState([]);
   const [posting, setPosting] = useState(false);
-  const [replies, setReplies] = useState(comment.replies || []);
+  const [deleting, setDeleting] = useState(false);
+  const replies = comment.replies || [];
 
   const authorName = comment.author?.nickname || comment.author?.username;
   const authorId = comment.author?._id || comment.author;
   const role = getAuthorRole(authorId, { postAuthorId });
+  const isOwnComment = !!user && authorId === user._id;
+  const canDelete = !comment.isDeleted && (isOwnComment || isModerator);
 
   const vote = async (value) => {
     const next = myVote === value ? null : value;
@@ -53,13 +56,25 @@ export default function CommentThread({ comment, postAuthorId, onReplyAdded, dep
       const { data } = await api.post('/comments', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setReplies((prev) => [{ ...data, replies: [] }, ...prev]);
       onReplyAdded?.(data);
       setReplyText('');
       setReplyFiles([]);
       setReplying(false);
     } catch { /* ignore */ } finally {
       setPosting(false);
+    }
+  };
+
+  const deleteComment = async () => {
+    if (!window.confirm('Видалити цей коментар?')) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/comments/${comment._id}`);
+      onDeleted?.(comment._id);
+    } catch {
+      /* ignore */
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -87,21 +102,31 @@ export default function CommentThread({ comment, postAuthorId, onReplyAdded, dep
 
         {!collapsed && (
           <>
-            <MarkdownText className="comment-text" text={comment.text} />
-            <MediaGallery media={comment.media} />
-            <div className="comment-actions">
-              <div className="vote-pill vote-pill-mini">
-                <button className={`vote-btn up ${myVote === 1 ? 'active' : ''}`} onClick={() => vote(1)} aria-label="Upvote">▲</button>
-                <span className="vote-score">{score}</span>
-                <button className={`vote-btn down ${myVote === -1 ? 'active' : ''}`} onClick={() => vote(-1)} aria-label="Downvote">▼</button>
+            <MarkdownText
+              className={`comment-text ${comment.isDeleted ? 'comment-text-deleted' : ''}`}
+              text={comment.text}
+            />
+            {!comment.isDeleted && <MediaGallery media={comment.media} />}
+            {!comment.isDeleted && (
+              <div className="comment-actions">
+                <div className="vote-pill vote-pill-mini">
+                  <button className={`vote-btn up ${myVote === 1 ? 'active' : ''}`} onClick={() => vote(1)} aria-label="Upvote">▲</button>
+                  <span className="vote-score">{score}</span>
+                  <button className={`vote-btn down ${myVote === -1 ? 'active' : ''}`} onClick={() => vote(-1)} aria-label="Downvote">▼</button>
+                </div>
+                {user && (
+                  <button className="comment-action-btn" onClick={() => setReplying((r) => !r)}>
+                    💬 Відповісти
+                  </button>
+                )}
+                <button className="comment-action-btn">↗ Поширити</button>
+                {canDelete && (
+                  <button className="comment-action-btn comment-action-danger" onClick={deleteComment} disabled={deleting}>
+                    🗑 {deleting ? 'Видалення…' : 'Видалити'}
+                  </button>
+                )}
               </div>
-              {user && (
-                <button className="comment-action-btn" onClick={() => setReplying((r) => !r)}>
-                  💬 Відповісти
-                </button>
-              )}
-              <button className="comment-action-btn">↗ Поширити</button>
-            </div>
+            )}
 
             {replying && (
               <form className="comment-form comment-reply-form" onSubmit={submitReply}>
@@ -135,6 +160,8 @@ export default function CommentThread({ comment, postAuthorId, onReplyAdded, dep
               comment={r}
               postAuthorId={postAuthorId}
               onReplyAdded={onReplyAdded}
+              onDeleted={onDeleted}
+              isModerator={isModerator}
               depth={depth + 1}
               targetCommentId={targetCommentId}
             />
