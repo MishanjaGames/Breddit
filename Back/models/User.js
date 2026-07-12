@@ -19,7 +19,22 @@ const userSchema = new Schema({
     },
     password: {
         type: String,
-        required: true
+        // локальным юзерам пароль обязателен, OAuth-юзерам (google/facebook) — нет
+        required: function () {
+            return !this.googleId && !this.facebookId;
+        }
+    },
+    googleId: {
+        type: String,
+        default: String,
+        unique: true,
+        sparse: true // sparse — чтобы несколько null не конфликтовали с unique-индексом
+    },
+    facebookId: {
+        type: String,
+        default: String,
+        unique: true,
+        sparse: true
     },
     avatar: {
         type: String,
@@ -55,6 +70,7 @@ userSchema.pre('save', async function () {
 });
 
 userSchema.methods.comparePassword = async function (candidatePassword) {
+    if (!this.password) return false; // OAuth-юзер без пароля — локальный логин для него невозможен
     return bcrypt.compare(candidatePassword, this.password);
 };
 

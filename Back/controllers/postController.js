@@ -5,7 +5,7 @@ const Vote = require('../models/Vote');
 const SavedItem = require('../models/SavedItem');
 const Subscription = require('../models/Subscription');
 const Notification = require('../models/Notification');
-const { buildMediaArray, removeMediaFiles, parseIdsList, MAX_FILES } = require('../middleware/mediaUpload');
+const { buildMediaArray, buildContentBlocks, removeMediaFiles, parseIdsList, MAX_FILES } = require('../middleware/mediaUpload');
 const { extractMentionedNicknames, findMentionedUsers } = require('../utils/mentions');
 
 // helper: applies sort order for a mongoose query based on ?sort=
@@ -95,9 +95,14 @@ const populatePosts = async (posts) => {
 
 
 // CREATE - создать пост
+// поддерживает 3 режима (для обратной совместимости):
+//   1) старый: title + description + media[] (файли без прив'язки до блоків)
+//   2) новий: title + contentSpec (JSON-опис впорядкованих блоків) + ті самі файли в req.files по черзі
+//   3) репост: repostOf (id оригінального поста) — title/content/description/media копіюються з оригіналу на сервері,
+//      клієнт лише обирає цільову спільноту (contentSpec/media з реквесту ігноруються)
 exports.createPost = async (req, res) => {
     try {
-        const { title, description, category } = req.body;
+        const { title, description, category, contentSpec, repostOf } = req.body;
         const author = req.user.id;
 
         const categoryExists = await Category.findById(category);
@@ -109,14 +114,48 @@ exports.createPost = async (req, res) => {
             return res.status(403).json({ message: 'Вас забанено в цій спільноті' });
         }
 
-        const media = buildMediaArray(req.files);
         const moderationStatus = categoryExists.requiresApproval ? 'pending' : 'approved';
 
-        const post = new Post({ title, description, category, author, media, moderationStatus });
+        let content = [];
+        let media = [];
+        let finalDescription = description || '';
+        let finalTitle = title;
+        let repostOfId = null;
+
+        if (repostOf) {
+            const original = await Post.findById(repostOf).lean();
+            if (!original) {
+                return res.status(404).json({ message: 'Оригінальний пост не знайдено' });
+            }
+            finalTitle = title || original.title;
+            content = original.content || [];
+            media = original.media || [];
+            finalDescription = original.description || '';
+            repostOfId = original._id;
+        } else if (contentSpec) {
+            content = buildContentBlocks(contentSpec, req.files);
+            media = content.filter((b) => b.type !== 'text'); // зберігаємо і в media для сумісності зі старими картками
+            const firstText = content.find((b) => b.type === 'text' && b.text?.trim());
+            finalDescription = firstText ? firstText.text : '';
+        } else {
+            media = buildMediaArray(req.files);
+        }
+
+        const post = new Post({
+            title: finalTitle,
+            description: finalDescription,
+            content,
+            category,
+            author,
+            media,
+            moderationStatus,
+            repostOf: repostOfId
+        });
         await post.save();
 
         // уведомляем упомянутых юзеров (u/nickname или @nickname) в заголовке/описании поста
-        const mentionedNicknames = extractMentionedNicknames(`${title} ${description}`);
+        const textForMentions = `${finalTitle} ${finalDescription}`;
+        const mentionedNicknames = extractMentionedNicknames(textForMentions);
         if (mentionedNicknames.length > 0) {
             const mentionedUsers = await findMentionedUsers(mentionedNicknames);
             const mentionTargets = mentionedUsers
@@ -136,7 +175,13 @@ exports.createPost = async (req, res) => {
             }
         }
 
-        res.status(201).json(post);
+        const populated = await Post.findById(post._id)
+            .populate('author', 'nickname avatar')
+            .populate('category', 'name icon')
+            .populate('repostOf', 'title category')
+            .lean();
+
+        res.status(201).json(populated);
     } catch (error) {
         res.status(500).json({ message: 'Ошибка сервера', error: error.message });
     }
@@ -339,7 +384,7 @@ exports.getPostById = async (req, res) => {
 // UPDATE - обновить пост
 exports.updatePost = async (req, res) => {
     try {
-        const { title, description, category, removeMediaIds } = req.body;
+        const { title, description, category, removeMediaIds, contentSpec } = req.body;
 
         const post = await Post.findById(req.params.id);
         if (!post) {
@@ -351,8 +396,60 @@ exports.updatePost = async (req, res) => {
         }
 
         post.title = title || post.title;
-        post.description = description || post.description;
         post.category = category || post.category;
+
+        if (contentSpec) {
+            // новий редактор блоків: contentSpec повністю замінює контент поста.
+            // Файли для блоків, що лишаються незмінними, фронтенд НЕ пересилає повторно —
+            // такі блоки позначені в specе через existingUrl замість файлу.
+            let spec;
+            try {
+                spec = JSON.parse(contentSpec);
+            } catch {
+                spec = [];
+            }
+
+            let fileIdx = 0;
+            const files = req.files || [];
+            const newContent = spec.map((block) => {
+                if (block.type === 'text') {
+                    return { type: 'text', text: String(block.text || '').slice(0, 40000) };
+                }
+                if (block.existingUrl) {
+                    // блок лишається як є — переносимо існуючі метадані з поточного поста, якщо знайдені
+                    const existing = post.content.find((c) => c.url === block.existingUrl);
+                    return existing ? existing.toObject() : null;
+                }
+                const file = files[fileIdx];
+                fileIdx += 1;
+                if (!file) return null;
+                const { getMediaType } = require('../middleware/mediaUpload');
+                const mediaType = getMediaType(file.mimetype);
+                const resolvedType = block.type === 'file' ? 'file' : (mediaType === 'gif' ? 'image' : mediaType);
+                return {
+                    type: ['image', 'video', 'file'].includes(resolvedType) ? resolvedType : 'file',
+                    url: `media/${file.filename}`,
+                    mimeType: file.mimetype,
+                    size: file.size,
+                    originalName: file.originalname
+                };
+            }).filter(Boolean);
+
+            // видаляємо з диска файли блоків, яких більше немає в новому контенті
+            const keptUrls = new Set(newContent.filter((b) => b.url).map((b) => b.url));
+            const removedBlocks = post.content.filter((b) => b.url && !keptUrls.has(b.url));
+            removeMediaFiles(removedBlocks);
+
+            post.content = newContent;
+            post.media = newContent.filter((b) => b.type !== 'text');
+            const firstText = newContent.find((b) => b.type === 'text' && b.text?.trim());
+            post.description = firstText ? firstText.text : '';
+
+            await post.save();
+            return res.status(200).json(post);
+        }
+
+        post.description = description || post.description;
 
         // удаляем выбранные медиа-вложения (removeMediaIds — id элементов media, JSON-массив или CSV)
         const idsToRemove = parseIdsList(removeMediaIds);

@@ -8,6 +8,23 @@ const mediaItemSchema = new Schema({
     size: { type: Number }
 }, { _id: true });
 
+// один блок контенту посту, в порядку додавання
+// text: { type: 'text', text }
+// image/video: { type: 'image'|'video', url, mimeType, size, originalName }
+// file: { type: 'file', url, mimeType, size, originalName }
+const contentBlockSchema = new Schema({
+    type: {
+        type: String,
+        enum: ['text', 'image', 'video', 'file'],
+        required: true
+    },
+    text: { type: String }, // тільки для type: 'text'
+    url: { type: String }, // тільки для image/video/file
+    mimeType: { type: String },
+    size: { type: Number },
+    originalName: { type: String }
+}, { _id: true });
+
 const postSchema = new Schema({
     title: {
         type: String,
@@ -15,9 +32,16 @@ const postSchema = new Schema({
         trim: true,
         maxlength: 300
     },
+    // description лишається як швидкий текстовий превʼю поста (перший текстовий блок),
+    // щоб не ламати пошук/картки, що досі читають description напряму
     description: {
         type: String,
-        required: true
+        default: ''
+    },
+    // впорядкований список блоків контенту поста: текст/зображення/відео/файл
+    content: {
+        type: [contentBlockSchema],
+        default: []
     },
     media: {
         type: [mediaItemSchema],
@@ -32,6 +56,12 @@ const postSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'User',
         required: true
+    },
+    // якщо пост є репостом, посилається на оригінальний пост (не змінюється при видаленні оригіналу)
+    repostOf: {
+        type: Schema.Types.ObjectId,
+        ref: 'Post',
+        default: null
     },
     karma: {
         type: Number,

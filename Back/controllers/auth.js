@@ -16,6 +16,8 @@ const buildUserResponse = (user) => ({
     email: user.email,
     nickname: user.nickname,
     avatar: user.avatar,
+    banner: user.banner,
+    status: user.status,
     karma: user.karma
 })
 
@@ -115,5 +117,19 @@ module.exports.refresh = async (req, res) => {
         })
     } catch (e) {
         return res.status(401).json({ success: false, message: e.message || e })
+    }
+}
+
+// Вызывается после успешной OAuth-авторизации (Google/Facebook).
+// passport уже положил найденного/созданного юзера в req.user (см. utils/oauth.js).
+// Это редирект-флоу браузера (а не fetch/XHR с фронта), поэтому токен
+// возвращаем не в JSON, а через query-параметр редиректа на страницу фронта,
+// которая должна его считать и сохранить (например, localStorage) на своей стороне.
+module.exports.oauthCallback = async (req, res) => {
+    try {
+        const token = createToken(req.user)
+        return res.redirect(`${keys.frontendUrl}/oauth/callback?token=${encodeURIComponent(token)}`)
+    } catch (e) {
+        return res.redirect(`${keys.frontendUrl}/login?error=oauth_failed`)
     }
 }

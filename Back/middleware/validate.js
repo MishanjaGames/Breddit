@@ -25,13 +25,27 @@ exports.validateAuth = (req, res, next) => {
 };
 
 exports.validatePost = (req, res, next) => {
-    const { title, description, category } = req.body;
+    const { title, description, category, contentSpec, repostOf } = req.body;
 
     if (!title || title.trim().length < 3) {
         return res.status(400).json({ success: false, message: 'Title must be at least 3 characters long' });
     }
 
-    if (!description || description.trim().length < 5) {
+    if (repostOf) {
+        // репост: контент копіюється з оригіналу на сервері, тут нема що валідувати додатково
+    } else if (contentSpec !== undefined) {
+        // новий блоковий редактор: контент вважається валідним, якщо в ньому є хоча б один блок
+        // (текст будь-якої довжини, або медіа/файл-блок — порожній пост не пропускаємо)
+        let spec;
+        try {
+            spec = JSON.parse(contentSpec);
+        } catch {
+            return res.status(400).json({ success: false, message: 'Invalid contentSpec' });
+        }
+        if (!Array.isArray(spec) || spec.length === 0) {
+            return res.status(400).json({ success: false, message: 'Post must have at least one content block' });
+        }
+    } else if (!description || description.trim().length < 5) {
         return res.status(400).json({ success: false, message: 'Description must be at least 5 characters long' });
     }
 
