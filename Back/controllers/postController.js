@@ -9,34 +9,40 @@ const { buildMediaArray, removeMediaFiles, parseIdsList, MAX_FILES } = require('
 const { extractMentionedNicknames, findMentionedUsers } = require('../utils/mentions');
 
 // helper: applies sort order for a mongoose query based on ?sort=
-// hot = recency-weighted score, new = createdAt, top = karma, controversial = low |karma| with activity
+// new = createdAt desc, top = karma desc, controversial = karma asc (most-downvoted first)
+// hot = comment count desc, computed via aggregation so sorting/pagination don't require overfetching
 const SORTS = {
     new: { createdAt: -1 },
     top: { karma: -1, createdAt: -1 },
-    hot: { karma: -1, createdAt: -1 }, // real "hot" needs a time-decay calc, approximated below post-fetch
-    controversial: { createdAt: -1 }
+    controversial: { karma: 1, createdAt: -1 }
 };
 
-const applyHotScore = (posts) => {
-    // classic reddit "hot" approximation: log10(score) decaying with age
-    const now = Date.now();
-    return posts
-        .map((p) => {
-            const ageHours = (now - new Date(p.createdAt).getTime()) / 3600000;
-            const score = Math.log10(Math.max(Math.abs(p.karma), 1)) * Math.sign(p.karma || 1) - ageHours / 45;
-            return { ...p, _hot: score };
-        })
-        .sort((a, b) => b._hot - a._hot)
-        .map(({ _hot, ...rest }) => rest);
-};
-
-const applyControversialScore = (posts) => {
-    // controversial = lots of votes but karma near zero (rough proxy using |karma| and commentCount)
-    return [...posts].sort((a, b) => {
-        const aScore = (a.commentCount || 0) - Math.abs(a.karma || 0);
-        const bScore = (b.commentCount || 0) - Math.abs(b.karma || 0);
-        return bScore - aScore;
-    });
+// runs a comment-count-sorted, paginated aggregation for a given base filter; returns { posts, total }
+const fetchHotSorted = async (matchFilter, { skip, limit, userId }) => {
+    const total = await Post.countDocuments(matchFilter);
+    const pipeline = [
+        { $match: matchFilter },
+        {
+            $lookup: {
+                from: 'comments',
+                let: { postId: '$_id' },
+                pipeline: [
+                    { $match: { $expr: { $and: [{ $eq: ['$post', '$$postId'] }, { $eq: ['$isDeleted', false] }] } } },
+                    { $count: 'count' }
+                ],
+                as: '_commentAgg'
+            }
+        },
+        { $addFields: { _commentCount: { $ifNull: [{ $first: '$_commentAgg.count' }, 0] } } },
+        { $sort: { _commentCount: -1, createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+        { $project: { _commentAgg: 0, _commentCount: 0 } }
+    ];
+    const docs = await Post.aggregate(pipeline);
+    const populated = await populatePosts(docs);
+    const enriched = await enrichPosts(populated, userId);
+    return { posts: enriched, total };
 };
 
 // enrich a list of lean posts with commentCount, myVote, isSaved
@@ -68,6 +74,26 @@ const enrichPosts = async (posts, userId) => {
     }));
 };
 
+// populates author/category on an already-fetched lean list (aggregation doesn't auto-populate)
+const populatePosts = async (posts) => {
+    const User = require('../models/User');
+    if (posts.length === 0) return posts;
+    const authorIds = [...new Set(posts.map((p) => p.author.toString()))];
+    const categoryIds = [...new Set(posts.map((p) => p.category.toString()))];
+    const [authors, categories] = await Promise.all([
+        User.find({ _id: { $in: authorIds } }).select('nickname avatar').lean(),
+        Category.find({ _id: { $in: categoryIds } }).select('name icon').lean()
+    ]);
+    const authorMap = new Map(authors.map((a) => [a._id.toString(), a]));
+    const categoryMap = new Map(categories.map((c) => [c._id.toString(), c]));
+    return posts.map((p) => ({
+        ...p,
+        author: authorMap.get(p.author.toString()) || p.author,
+        category: categoryMap.get(p.category.toString()) || p.category
+    }));
+};
+
+
 // CREATE - создать пост
 exports.createPost = async (req, res) => {
     try {
@@ -79,27 +105,15 @@ exports.createPost = async (req, res) => {
             return res.status(404).json({ message: 'Категория не найдена' });
         }
 
-        const media = buildMediaArray(req.files);
-
-        const post = new Post({ title, description, category, author, media });
-        await post.save();
-
-        // уведомляем подписчиков спільноти про новий пост (крім самого автора)
-        const subs = await Subscription.find({ category }).select('user').lean();
-        const subscriberIds = [...new Set(subs.map((s) => s.user.toString()))]
-            .filter((uid) => uid !== author);
-        if (subscriberIds.length > 0) {
-            await Notification.insertMany(
-                subscriberIds.map((uid) => ({
-                    recipient: uid,
-                    type: 'new_post',
-                    message: `Новий пост у r/${categoryExists.name}`,
-                    fromUser: author,
-                    post: post._id,
-                    category: categoryExists._id
-                }))
-            );
+        if (categoryExists.bannedUsers?.some((id) => id.toString() === author)) {
+            return res.status(403).json({ message: 'Вас забанено в цій спільноті' });
         }
+
+        const media = buildMediaArray(req.files);
+        const moderationStatus = categoryExists.requiresApproval ? 'pending' : 'approved';
+
+        const post = new Post({ title, description, category, author, media, moderationStatus });
+        await post.save();
 
         // уведомляем упомянутых юзеров (u/nickname или @nickname) в заголовке/описании поста
         const mentionedNicknames = extractMentionedNicknames(`${title} ${description}`);
@@ -128,8 +142,14 @@ exports.createPost = async (req, res) => {
     }
 };
 
+// helper: parses ?tags=news,tech into a lowercased, deduped array
+const parseTagsParam = (raw) => {
+    if (!raw) return [];
+    return [...new Set(String(raw).split(',').map((t) => t.trim().toLowerCase()).filter(Boolean))];
+};
+
 // READ - получить все посты (с пагинацией, feed, sort)
-// query: page, limit, feed = home|popular|all, sort = hot|new|top|controversial
+// query: page, limit, feed = home|popular|all|news, sort = hot|new|top|controversial, tags = csv список тегів спільнот
 exports.getAllPosts = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
@@ -138,6 +158,7 @@ exports.getAllPosts = async (req, res) => {
         const feed = req.query.feed || 'popular';
         const sort = req.query.sort || 'hot';
         const userId = req.user?.id;
+        const requestedTags = parseTagsParam(req.query.tags);
 
         let categoryFilter = {};
         let message = '';
@@ -152,27 +173,49 @@ exports.getAllPosts = async (req, res) => {
                 return res.status(200).json({ posts: [], message: 'Підпишіться на спільноти, щоб бачити тут пости', currentPage: page, totalPages: 0, totalPosts: 0 });
             }
             categoryFilter = { category: { $in: categoryIds } };
+        } else if (feed === 'news') {
+            const newsCategories = await Category.find({ tags: 'news' }).select('_id').lean();
+            const categoryIds = newsCategories.map((c) => c._id);
+            if (categoryIds.length === 0) {
+                return res.status(200).json({ posts: [], message: 'Немає спільнот з тегом news', currentPage: page, totalPages: 0, totalPosts: 0 });
+            }
+            categoryFilter = { category: { $in: categoryIds } };
         }
         // 'popular' and 'all' both search everything for now (no separate popularity tiering)
 
-        const needsPostProcessSort = sort === 'hot' || sort === 'controversial';
-        const mongoSort = SORTS[sort] || SORTS.hot;
+        // ?tags=news,tech filters posts down to communities carrying ANY of the requested tags,
+        // intersected with whatever the feed mode already selected
+        if (requestedTags.length > 0) {
+            const taggedCategories = await Category.find({ tags: { $in: requestedTags } }).select('_id').lean();
+            const taggedIds = new Set(taggedCategories.map((c) => c._id.toString()));
+            if (categoryFilter.category?.$in) {
+                categoryFilter.category.$in = categoryFilter.category.$in.filter((id) => taggedIds.has(id.toString()));
+            } else {
+                categoryFilter.category = { $in: [...taggedIds] };
+            }
+            if (categoryFilter.category.$in.length === 0) {
+                return res.status(200).json({ posts: [], message: 'Немає спільнот з цими тегами', currentPage: page, totalPages: 0, totalPosts: 0 });
+            }
+        }
 
-        let query = Post.find(categoryFilter)
-            .populate('author', 'nickname avatar')
-            .populate('category', 'name icon')
-            .sort(mongoSort);
+        // тільки схвалені пости показуємо у стрічках
+        categoryFilter.moderationStatus = 'approved';
 
-        // for hot/controversial we need commentCount before final ordering, so overfetch then re-sort in JS
-        const total = await Post.countDocuments(categoryFilter);
         let posts;
-        if (needsPostProcessSort) {
-            const pool = await query.limit(Math.min(total, 300)).lean();
-            const enrichedPool = await enrichPosts(pool, userId);
-            const sorted = sort === 'hot' ? applyHotScore(enrichedPool) : applyControversialScore(enrichedPool);
-            posts = sorted.slice(skip, skip + limit);
+        let total;
+        if (sort === 'hot') {
+            const result = await fetchHotSorted(categoryFilter, { skip, limit, userId });
+            posts = result.posts;
+            total = result.total;
         } else {
-            const pageDocs = await query.skip(skip).limit(limit).lean();
+            total = await Post.countDocuments(categoryFilter);
+            const pageDocs = await Post.find(categoryFilter)
+                .populate('author', 'nickname avatar')
+                .populate('category', 'name icon')
+                .sort(SORTS[sort] || SORTS.new)
+                .skip(skip)
+                .limit(limit)
+                .lean();
             posts = await enrichPosts(pageDocs, userId);
         }
 
@@ -188,24 +231,87 @@ exports.getAllPosts = async (req, res) => {
     }
 };
 
-// READ - получить посты одной категории
+// READ - получить посты одной категории (з пагінацією)
 exports.getPostsByCategory = async (req, res) => {
     try {
-        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+        const page = parseInt(req.query.page) || 1;
+        const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+        const skip = (page - 1) * limit;
         const sort = req.query.sort || 'new';
         const userId = req.user?.id;
 
-        const posts = await Post.find({ category: req.params.categoryId })
-            .populate('author', 'nickname avatar')
-            .populate('category', 'name icon')
-            .sort(SORTS[sort] || SORTS.new)
-            .limit(limit)
-            .lean();
+        const filter = { category: req.params.categoryId, moderationStatus: 'approved' };
 
-        const enriched = await enrichPosts(posts, userId);
-        const finalPosts = sort === 'hot' ? applyHotScore(enriched) : sort === 'controversial' ? applyControversialScore(enriched) : enriched;
+        let posts;
+        let total;
+        if (sort === 'hot') {
+            const result = await fetchHotSorted(filter, { skip, limit, userId });
+            posts = result.posts;
+            total = result.total;
+        } else {
+            total = await Post.countDocuments(filter);
+            const pageDocs = await Post.find(filter)
+                .populate('author', 'nickname avatar')
+                .populate('category', 'name icon')
+                .sort(SORTS[sort] || SORTS.new)
+                .skip(skip)
+                .limit(limit)
+                .lean();
+            posts = await enrichPosts(pageDocs, userId);
+        }
 
-        res.status(200).json(finalPosts);
+        res.status(200).json({
+            posts,
+            currentPage: page,
+            totalPages: Math.ceil(total / limit),
+            totalPosts: total
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Ошибка сервера', error: error.message });
+    }
+};
+
+// READ - получить посты одного пользователя (з пагінацією)
+exports.getPostsByAuthor = async (req, res) => {
+    try {
+        const User = require('../models/User');
+        const user = await User.findOne({ nickname: req.params.nickname }).select('_id').lean();
+        if (!user) {
+            return res.status(404).json({ message: 'Користувача не знайдено' });
+        }
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+        const skip = (page - 1) * limit;
+        const sort = req.query.sort || 'new';
+        const userId = req.user?.id;
+
+        const filter = { author: user._id, moderationStatus: 'approved' };
+
+        let posts;
+        let total;
+        if (sort === 'hot') {
+            const result = await fetchHotSorted(filter, { skip, limit, userId });
+            posts = result.posts;
+            total = result.total;
+        } else {
+            total = await Post.countDocuments(filter);
+            const pageDocs = await Post.find(filter)
+                .populate('author', 'nickname avatar')
+                .populate('category', 'name icon')
+                .sort(SORTS[sort] || SORTS.new)
+                .skip(skip)
+                .limit(limit)
+                .lean();
+            posts = await enrichPosts(pageDocs, userId);
+        }
+
+        res.status(200).json({
+            posts,
+            currentPage: page,
+            totalPages: Math.ceil(total / limit),
+            totalPosts: total
+        });
     } catch (error) {
         res.status(500).json({ message: 'Ошибка сервера', error: error.message });
     }
@@ -338,5 +444,69 @@ exports.getSavedPosts = async (req, res) => {
         res.status(200).json(enriched);
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// GET /api/posts/category/:categoryId/pending - список постів, що очікують модерації (тільки для мод/творця)
+exports.getPendingPosts = async (req, res) => {
+    try {
+        const { canModerate } = require('./categoryController');
+        const category = await Category.findById(req.params.categoryId);
+        if (!category) return res.status(404).json({ message: 'Категория не найдена' });
+        if (!canModerate(category, req.user.id)) {
+            return res.status(403).json({ message: 'Немає прав модератора' });
+        }
+
+        const posts = await Post.find({ category: category._id, moderationStatus: 'pending' })
+            .populate('author', 'nickname avatar')
+            .populate('category', 'name icon')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        res.status(200).json(posts);
+    } catch (error) {
+        res.status(500).json({ message: 'Ошибка сервера', error: error.message });
+    }
+};
+
+// POST /api/posts/:id/approve - схвалити пост, що чекає модерації
+exports.approvePost = async (req, res) => {
+    try {
+        const { canModerate } = require('./categoryController');
+        const post = await Post.findById(req.params.id);
+        if (!post) return res.status(404).json({ message: 'Пост не найден' });
+
+        const category = await Category.findById(post.category);
+        if (!category || !canModerate(category, req.user.id)) {
+            return res.status(403).json({ message: 'Немає прав модератора' });
+        }
+
+        post.moderationStatus = 'approved';
+        await post.save();
+
+        res.status(200).json({ success: true, post });
+    } catch (error) {
+        res.status(500).json({ message: 'Ошибка сервера', error: error.message });
+    }
+};
+
+// POST /api/posts/:id/reject - відхилити (видалити) пост, що чекає модерації
+exports.rejectPost = async (req, res) => {
+    try {
+        const { canModerate } = require('./categoryController');
+        const post = await Post.findById(req.params.id);
+        if (!post) return res.status(404).json({ message: 'Пост не найден' });
+
+        const category = await Category.findById(post.category);
+        if (!category || !canModerate(category, req.user.id)) {
+            return res.status(403).json({ message: 'Немає прав модератора' });
+        }
+
+        post.moderationStatus = 'removed';
+        await post.save();
+
+        res.status(200).json({ success: true, message: 'Пост відхилено' });
+    } catch (error) {
+        res.status(500).json({ message: 'Ошибка сервера', error: error.message });
     }
 };

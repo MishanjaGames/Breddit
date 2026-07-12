@@ -17,7 +17,7 @@ exports.search = async (req, res) => {
                 .skip(skip)
                 .limit(limit)
                 .sort({ createdAt: -1 }),
-            Category.find({ name: searchRegex }).populate('creator', 'nickname avatar').limit(5),
+            Category.find({ name: searchRegex }).limit(5),
             Post.countDocuments({ $or: [{ title: searchRegex }, { description: searchRegex }] })
         ]);
 

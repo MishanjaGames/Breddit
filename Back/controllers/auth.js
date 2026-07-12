@@ -16,8 +16,6 @@ const buildUserResponse = (user) => ({
     email: user.email,
     nickname: user.nickname,
     avatar: user.avatar,
-    banner: user.banner,
-    status: user.status,
     karma: user.karma
 })
 
@@ -59,7 +57,7 @@ module.exports.register = async (req, res) => {
         const newUser = new User({
             email: req.body.email.toLowerCase(),
             password: req.body.password,
-            nickname: (req.body.nickname || req.body.username).trim()
+            nickname: (req.body.nickname || req.body.username).trim().replace(/\s+/g, '_')
         })
 
         await newUser.save()

@@ -7,6 +7,7 @@ const commentController = require('../controllers/commentController');
 
 // Публичные роуты (персоналізовані якщо є токен: myVote)
 router.get('/post/:postId', optionalAuth, commentController.getCommentsByPost);
+router.get('/author/:nickname', commentController.getCommentsByAuthor);
 router.get('/:id', optionalAuth, commentController.getCommentById);
 
 // Защищённые роуты

@@ -18,3 +18,23 @@ exports.avatarLimiter = rateLimit({
     keyGenerator: (req) => (req.user ? req.user.id : ipKeyGenerator(req.ip)),
     message: { success: false, message: 'Занадто часті запити. Спробуйте ще раз через пару секунд.' }
 });
+
+// ліміт на створення/редагування спільнот: захист від спаму POST/PUT /categories
+exports.categoryWriteLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => (req.user ? req.user.id : ipKeyGenerator(req.ip)),
+    message: { success: false, message: 'Занадто часті зміни спільноти. Спробуйте пізніше.' }
+});
+
+// ліміт на редагування профілю (PUT /users/me): захист від спаму зміною нікнейму/статусу
+exports.profileLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => (req.user ? req.user.id : ipKeyGenerator(req.ip)),
+    message: { success: false, message: 'Занадто часті зміни профілю. Спробуйте пізніше.' }
+});

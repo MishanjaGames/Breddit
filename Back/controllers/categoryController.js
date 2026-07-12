@@ -4,7 +4,7 @@ const Subscription = require('../models/Subscription');
 // CREATE - создать категорию (спільноту)
 exports.createCategory = async (req, res) => {
     try {
-        const { name, description, icon, banner, rules, status } = req.body;
+        const { name, description, icon, banner, rules, status, tags } = req.body;
 
         const category = await Category.create({
             name,
@@ -13,6 +13,7 @@ exports.createCategory = async (req, res) => {
             banner,
             rules,
             status,
+            tags,
             creator: req.user.id,
             subscriberCount: 1
         });
@@ -29,9 +30,17 @@ exports.createCategory = async (req, res) => {
 };
 
 // READ - получить все категории (з ознакою підписки поточного юзера, якщо є токен)
+// query: tag / tags = csv список тегів для фільтрації (?tag=news або ?tags=news,tech — знаходить будь-який зі списку)
 exports.getAllCategories = async (req, res) => {
     try {
-        const categories = await Category.find().sort({ subscriberCount: -1, createdAt: -1 }).populate('creator', 'nickname avatar').lean();
+        const rawTags = req.query.tags || req.query.tag;
+        const filter = {};
+        if (rawTags) {
+            const tags = String(rawTags).split(',').map((t) => t.trim().toLowerCase()).filter(Boolean);
+            if (tags.length > 0) filter.tags = { $in: tags };
+        }
+
+        const categories = await Category.find(filter).sort({ subscriberCount: -1, createdAt: -1 }).lean();
 
         if (req.user) {
             const subs = await Subscription.find({ user: req.user.id }).select('category').lean();
@@ -48,7 +57,7 @@ exports.getAllCategories = async (req, res) => {
 // READ - получить одну категорию по ID
 exports.getCategoryById = async (req, res) => {
     try {
-        const category = await Category.findById(req.params.id).populate('creator', 'nickname avatar').lean();
+        const category = await Category.findById(req.params.id).lean();
         if (!category) {
             return res.status(404).json({ message: 'Категория не найдена' });
         }
@@ -67,7 +76,7 @@ exports.getCategoryById = async (req, res) => {
 // UPDATE - обновить категорию (тільки творець спільноти)
 exports.updateCategory = async (req, res) => {
     try {
-        const { name, description, icon, banner, rules, status } = req.body;
+        const { name, description, icon, banner, rules, status, tags, requiresApproval } = req.body;
 
         const existing = await Category.findById(req.params.id);
         if (!existing) {
@@ -79,9 +88,9 @@ exports.updateCategory = async (req, res) => {
 
         const category = await Category.findByIdAndUpdate(
             req.params.id,
-            { name, description, icon, banner, rules, status },
+            { name, description, icon, banner, rules, status, tags, requiresApproval },
             { new: true, runValidators: true }
-        ).populate('creator', 'nickname avatar');
+        );
 
         res.status(200).json(category);
     } catch (error) {
@@ -158,9 +167,137 @@ exports.unsubscribe = async (req, res) => {
 // GET /api/categories/mine/subscribed - список спільнот, на які підписаний юзер
 exports.getMySubscriptions = async (req, res) => {
     try {
-        const subs = await Subscription.find({ user: req.user.id }).populate({ path: 'category', populate: { path: 'creator', select: 'nickname avatar' } });
+        const subs = await Subscription.find({ user: req.user.id }).populate('category');
         res.status(200).json(subs.map((s) => s.category).filter(Boolean));
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+// перевіряє, що юзер - творець спільноти або її модератор
+const canModerate = (category, userId) => {
+    if (category.creator && category.creator.toString() === userId) return true;
+    return (category.moderators || []).some((id) => id.toString() === userId);
+};
+
+// POST /api/categories/:id/ban/:userId - забанити юзера в спільноті (не може постити/коментувати)
+exports.banUser = async (req, res) => {
+    try {
+        const category = await Category.findById(req.params.id);
+        if (!category) return res.status(404).json({ success: false, message: 'Категория не найдена' });
+        if (!canModerate(category, req.user.id)) {
+            return res.status(403).json({ success: false, message: 'Немає прав модератора' });
+        }
+        if (req.params.userId === req.user.id) {
+            return res.status(400).json({ success: false, message: 'Не можна забанити самого себе' });
+        }
+
+        if (!category.bannedUsers.some((id) => id.toString() === req.params.userId)) {
+            category.bannedUsers.push(req.params.userId);
+            await category.save();
+        }
+
+        res.status(200).json({ success: true, bannedUsers: category.bannedUsers });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// DELETE /api/categories/:id/ban/:userId - розбанити юзера
+exports.unbanUser = async (req, res) => {
+    try {
+        const category = await Category.findById(req.params.id);
+        if (!category) return res.status(404).json({ success: false, message: 'Категория не найдена' });
+        if (!canModerate(category, req.user.id)) {
+            return res.status(403).json({ success: false, message: 'Немає прав модератора' });
+        }
+
+        category.bannedUsers = category.bannedUsers.filter((id) => id.toString() !== req.params.userId);
+        await category.save();
+
+        res.status(200).json({ success: true, bannedUsers: category.bannedUsers });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// POST /api/categories/:id/mute/:userId - замутити юзера (може постити, коментарі приховуються)
+exports.muteUser = async (req, res) => {
+    try {
+        const category = await Category.findById(req.params.id);
+        if (!category) return res.status(404).json({ success: false, message: 'Категория не найдена' });
+        if (!canModerate(category, req.user.id)) {
+            return res.status(403).json({ success: false, message: 'Немає прав модератора' });
+        }
+        if (req.params.userId === req.user.id) {
+            return res.status(400).json({ success: false, message: 'Не можна замутити самого себе' });
+        }
+
+        if (!category.mutedUsers.some((id) => id.toString() === req.params.userId)) {
+            category.mutedUsers.push(req.params.userId);
+            await category.save();
+        }
+
+        res.status(200).json({ success: true, mutedUsers: category.mutedUsers });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// DELETE /api/categories/:id/mute/:userId - зняти мут
+exports.unmuteUser = async (req, res) => {
+    try {
+        const category = await Category.findById(req.params.id);
+        if (!category) return res.status(404).json({ success: false, message: 'Категория не найдена' });
+        if (!canModerate(category, req.user.id)) {
+            return res.status(403).json({ success: false, message: 'Немає прав модератора' });
+        }
+
+        category.mutedUsers = category.mutedUsers.filter((id) => id.toString() !== req.params.userId);
+        await category.save();
+
+        res.status(200).json({ success: true, mutedUsers: category.mutedUsers });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// POST /api/categories/:id/moderators/:userId - призначити модератора (тільки творець)
+exports.addModerator = async (req, res) => {
+    try {
+        const category = await Category.findById(req.params.id);
+        if (!category) return res.status(404).json({ success: false, message: 'Категория не найдена' });
+        if (!category.creator || category.creator.toString() !== req.user.id) {
+            return res.status(403).json({ success: false, message: 'Тільки творець може призначати модераторів' });
+        }
+
+        if (!category.moderators.some((id) => id.toString() === req.params.userId)) {
+            category.moderators.push(req.params.userId);
+            await category.save();
+        }
+
+        res.status(200).json({ success: true, moderators: category.moderators });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// DELETE /api/categories/:id/moderators/:userId - зняти модератора (тільки творець)
+exports.removeModerator = async (req, res) => {
+    try {
+        const category = await Category.findById(req.params.id);
+        if (!category) return res.status(404).json({ success: false, message: 'Категория не найдена' });
+        if (!category.creator || category.creator.toString() !== req.user.id) {
+            return res.status(403).json({ success: false, message: 'Тільки творець може знімати модераторів' });
+        }
+
+        category.moderators = category.moderators.filter((id) => id.toString() !== req.params.userId);
+        await category.save();
+
+        res.status(200).json({ success: true, moderators: category.moderators });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+module.exports.canModerate = canModerate;

@@ -6,15 +6,65 @@ const Post = require('../models/Post');
 const Comment = require('../models/Comment');
 const Follow = require('../models/Follow');
 const Notification = require('../models/Notification');
+const Vote = require('../models/Vote');
+const SavedItem = require('../models/SavedItem');
+const Subscription = require('../models/Subscription');
+const Category = require('../models/Category');
+const { removeMediaFiles } = require('../middleware/mediaUpload');
 
 const DEFAULT_AVATAR = null; // фронтенд сам рисует дефолтную аватарку, когда avatar === null
 const AVATARS_DIR = path.join(__dirname, '..', 'uploads');
 
-// удаляет файл предыдущей аватарки, если она была реально загружена (не null)
+// удаляет файл предыдущей аватарки/банера, если он был реально загружен (не null)
 const removeOldAvatar = (avatar) => {
     if (!avatar) return;
     const oldPath = path.join(AVATARS_DIR, avatar);
     fs.unlink(oldPath, () => {}); // не критично, если файла уже нет
+};
+
+// PUT /api/users/me -> обновить нікнейм/статус/біо текущего юзера
+exports.updateProfile = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Пользователь не найден' });
+        }
+
+        const { nickname, status, bio } = req.body;
+
+        if (nickname !== undefined) {
+            const clean = String(nickname).trim().replace(/\s+/g, '_');
+            if (clean.length < 3) {
+                return res.status(400).json({ success: false, message: 'Нікнейм має бути не менше 3 символів' });
+            }
+            if (!/^[a-zA-Z0-9_]+$/.test(clean)) {
+                return res.status(400).json({ success: false, message: 'Нікнейм може містити лише латинські літери, цифри та підкреслення' });
+            }
+            user.nickname = clean;
+        }
+        if (status !== undefined) user.status = String(status).slice(0, 100);
+        if (bio !== undefined) user.bio = String(bio).slice(0, 300);
+
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            user: {
+                id: user._id,
+                username: user.nickname,
+                nickname: user.nickname,
+                status: user.status,
+                bio: user.bio,
+                avatar: user.avatar,
+                banner: user.banner
+            }
+        });
+    } catch (error) {
+        if (error.code === 11000) {
+            return res.status(400).json({ success: false, message: 'Цей нікнейм вже зайнятий' });
+        }
+        res.status(500).json({ success: false, message: error.message });
+    }
 };
 
 // GET /api/users/resolve?ids=id1,id2 -> { users: [{ id, nickname }] } (публічний lookup id -> нікнейм)
@@ -80,51 +130,6 @@ exports.getByNickname = async (req, res) => {
     }
 };
 
-// PUT /api/users/me -> оновити нікнейм/статус/біо поточного юзера
-exports.updateProfile = async (req, res) => {
-    try {
-        const { nickname, bio, status } = req.body;
-        const user = await User.findById(req.user.id);
-        if (!user) {
-            return res.status(404).json({ success: false, message: 'Пользователь не найден' });
-        }
-
-        if (nickname && nickname !== user.nickname) {
-            const trimmed = nickname.trim();
-            if (trimmed.length < 3 || trimmed.length > 30 || !/^[a-zA-Z0-9_]+$/.test(trimmed)) {
-                return res.status(400).json({ success: false, message: 'Нікнейм: 3-30 символів, латиниця/цифри/підкреслення' });
-            }
-            const taken = await User.findOne({ nickname: trimmed, _id: { $ne: user._id } });
-            if (taken) {
-                return res.status(400).json({ success: false, message: 'Цей нікнейм вже зайнято' });
-            }
-            user.nickname = trimmed;
-        }
-
-        if (bio !== undefined) user.bio = bio;
-        if (status !== undefined) user.status = status;
-
-        await user.save();
-
-        res.status(200).json({
-            success: true,
-            user: {
-                id: user._id,
-                nickname: user.nickname,
-                bio: user.bio,
-                status: user.status,
-                avatar: user.avatar,
-                banner: user.banner
-            }
-        });
-    } catch (error) {
-        if (error.code === 11000) {
-            return res.status(400).json({ success: false, message: 'Цей нікнейм вже зайнято' });
-        }
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
-
 // PUT /api/users/me/avatar -> загрузить/заменить аватарку текущего юзера
 exports.updateAvatar = async (req, res) => {
     try {
@@ -171,7 +176,7 @@ exports.deleteAvatar = async (req, res) => {
     }
 };
 
-// PUT /api/users/me/banner -> загрузить/заменить банер профілю
+// PUT /api/users/me/banner -> загрузить/заменить банер текущего юзера
 exports.updateBanner = async (req, res) => {
     try {
         if (!req.file) {
@@ -185,16 +190,20 @@ exports.updateBanner = async (req, res) => {
 
         removeOldAvatar(user.banner);
 
-        user.banner = `banners/${req.file.filename}`;
+        user.banner = `avatars/${req.file.filename}`;
         await user.save();
 
-        res.status(200).json({ success: true, banner: user.banner });
+        res.status(200).json({
+            success: true,
+            banner: user.banner,
+            bannerUrl: `/uploads/${user.banner}`
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
 };
 
-// DELETE /api/users/me/banner -> прибрати банер профілю
+// DELETE /api/users/me/banner -> прибрати банер
 exports.deleteBanner = async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
@@ -303,6 +312,52 @@ exports.getFollowing = async (req, res) => {
             success: true,
             following: follows.map((f) => f.following)
         });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+// DELETE /api/users/me -> видалити акаунт та каскадно всі повʼязані дані
+exports.deleteAccount = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Пользователь не найден' });
+        }
+
+        // видаляємо медіафайли власних постів і коментарів перед видаленням записів
+        const ownPosts = await Post.find({ author: userId }).select('media').lean();
+        ownPosts.forEach((p) => removeMediaFiles(p.media));
+        const ownComments = await Comment.find({ author: userId }).select('media').lean();
+        ownComments.forEach((c) => removeMediaFiles(c.media));
+
+        // видаляємо файли аватара/банера
+        removeOldAvatar(user.avatar);
+        removeOldAvatar(user.banner);
+
+        await Promise.all([
+            Post.deleteMany({ author: userId }),
+            Comment.deleteMany({ author: userId }),
+            Vote.deleteMany({ author: userId }),
+            SavedItem.deleteMany({ user: userId }),
+            Subscription.deleteMany({ user: userId }),
+            Follow.deleteMany({ $or: [{ follower: userId }, { following: userId }] }),
+            Notification.deleteMany({ $or: [{ recipient: userId }, { fromUser: userId }] })
+        ]);
+
+        // прибираємо юзера зі списків бан/мут/модераторів усіх спільнот
+        await Category.updateMany(
+            {},
+            { $pull: { bannedUsers: userId, mutedUsers: userId, moderators: userId } }
+        );
+
+        // спільноти, де юзер був єдиним творцем, залишаються без творця (creator: null),
+        // а не видаляються — це зберігає контент спільноти для інших учасників
+        await Category.updateMany({ creator: userId }, { creator: null });
+
+        await User.findByIdAndDelete(userId);
+
+        res.status(200).json({ success: true, message: 'Акаунт видалено' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

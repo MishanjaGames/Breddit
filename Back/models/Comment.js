@@ -41,6 +41,11 @@ const commentSchema = new Schema({
     isDeleted: {
         type: Boolean,
         default: false
+    },
+    // коментарі замучених у спільноті юзерів зберігаються, але не показуються в публічному списку
+    isHiddenByModeration: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true

@@ -1,5 +1,6 @@
 const Comment = require('../models/Comment');
 const Post = require('../models/Post');
+const Category = require('../models/Category');
 const Notification = require('../models/Notification');
 const Vote = require('../models/Vote');
 const SavedItem = require('../models/SavedItem');
@@ -29,6 +30,12 @@ exports.createComment = async (req, res) => {
             return res.status(404).json({ message: 'Пост не найден' });
         }
 
+        const postCategory = await Category.findById(postExists.category).select('bannedUsers mutedUsers').lean();
+        if (postCategory?.bannedUsers?.some((id) => id.toString() === author)) {
+            return res.status(403).json({ message: 'Вас забанено в цій спільноті' });
+        }
+        const isMuted = !!postCategory?.mutedUsers?.some((id) => id.toString() === author);
+
         if (parentComment) {
             const parentExists = await Comment.findById(parentComment);
             if (!parentExists) {
@@ -41,7 +48,8 @@ exports.createComment = async (req, res) => {
             author,
             post,
             parentComment: parentComment || null,
-            media: buildMediaArray(req.files)
+            media: buildMediaArray(req.files),
+            isHiddenByModeration: isMuted
         });
 
         await comment.save();
@@ -117,17 +125,60 @@ exports.createComment = async (req, res) => {
 exports.getCommentsByPost = async (req, res) => {
     try {
         const limit = Math.min(parseInt(req.query.limit) || 200, 500);
+        const userId = req.user?.id;
 
-        const comments = await Comment.find({
-            post: req.params.postId,
-            isDeleted: false
-        })
+        const filter = { post: req.params.postId, isDeleted: false };
+        // муті-приховані коментарі бачить лише сам автор; для інших виключаємо їх зі стрічки
+        if (userId) {
+            filter.$or = [{ isHiddenByModeration: false }, { author: userId }];
+        } else {
+            filter.isHiddenByModeration = false;
+        }
+
+        const comments = await Comment.find(filter)
             .populate('author', 'nickname avatar')
             .sort({ createdAt: -1 })
             .limit(limit);
 
         const enriched = await enrichComments(comments, req.user?.id);
         res.status(200).json(enriched);
+    } catch (error) {
+        res.status(500).json({ message: 'Ошибка сервера', error: error.message });
+    }
+};
+
+// READ - получить комментарі одного користувача (з пагінацією), для вкладки "Коментарі" в профілі
+// query: page, limit
+exports.getCommentsByAuthor = async (req, res) => {
+    try {
+        const User = require('../models/User');
+        const author = await User.findOne({ nickname: req.params.nickname }).select('_id').lean();
+        if (!author) return res.status(404).json({ message: 'Користувача не знайдено' });
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+        const skip = (page - 1) * limit;
+
+        const filter = { author: author._id, isDeleted: false };
+        const total = await Comment.countDocuments(filter);
+
+        const comments = await Comment.find(filter)
+            .populate('author', 'nickname avatar')
+            .populate({ path: 'post', select: 'title category', populate: { path: 'category', select: 'name' } })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        // posts that got deleted after the comment was made leave `post: null`; drop those, they can't be linked to
+        const linkable = comments.filter((c) => c.post && c.post.category);
+
+        res.status(200).json({
+            comments: linkable,
+            currentPage: page,
+            totalPages: Math.ceil(total / limit),
+            totalComments: total
+        });
     } catch (error) {
         res.status(500).json({ message: 'Ошибка сервера', error: error.message });
     }

@@ -9,7 +9,7 @@ const notificationSchema = new Schema({
     },
     type: {
         type: String,
-        enum: ['reply', 'comment_on_post', 'upvote_post', 'upvote_comment', 'saved_post_activity', 'mention', 'follow', 'new_post'],
+        enum: ['reply', 'comment_on_post', 'upvote_post', 'upvote_comment', 'saved_post_activity', 'mention', 'follow'],
         required: true
     },
     message: {
@@ -31,11 +31,6 @@ const notificationSchema = new Schema({
     comment: {
         type: Schema.Types.ObjectId,
         ref: 'Comment',
-        default: null
-    },
-    category: {
-        type: Schema.Types.ObjectId,
-        ref: 'Category',
         default: null
     },
     isRead: {

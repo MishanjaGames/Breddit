@@ -7,9 +7,8 @@ exports.getMine = async (req, res) => {
             .sort({ createdAt: -1 })
             .limit(50)
             .populate('fromUser', 'nickname avatar')
-            .populate({ path: 'post', select: 'title category', populate: { path: 'category', select: 'name' } })
-            .populate('comment', 'text')
-            .populate('category', 'name');
+            .populate('post', 'title')
+            .populate('comment', 'text');
 
         const unreadCount = await Notification.countDocuments({ recipient: req.user.id, isRead: false });
 
@@ -22,9 +21,8 @@ exports.getMine = async (req, res) => {
                 message: n.message,
                 isRead: n.isRead,
                 fromUser: n.fromUser ? { id: n.fromUser._id, nickname: n.fromUser.nickname, avatar: n.fromUser.avatar } : null,
-                post: n.post ? { id: n.post._id, title: n.post.title, categoryName: n.post.category?.name || null } : null,
+                post: n.post ? { id: n.post._id, title: n.post.title } : null,
                 comment: n.comment ? { id: n.comment._id, text: n.comment.text } : null,
-                category: n.category ? { id: n.category._id, name: n.category.name } : null,
                 createdAt: n.createdAt
             }))
         });

@@ -36,6 +36,12 @@ const postSchema = new Schema({
     karma: {
         type: Number,
         default: 0
+    },
+    // pending пости не показуються в стрічках, доки модератор не схвалить (для спільнот з requiresApproval)
+    moderationStatus: {
+        type: String,
+        enum: ['approved', 'pending', 'removed'],
+        default: 'approved'
     }
 }, {
     timestamps: true
@@ -43,5 +49,6 @@ const postSchema = new Schema({
 
 postSchema.index({ category: 1, createdAt: -1 });
 postSchema.index({ author: 1 });
+postSchema.index({ moderationStatus: 1 });
 
 module.exports = mongoose.model('Post', postSchema);
