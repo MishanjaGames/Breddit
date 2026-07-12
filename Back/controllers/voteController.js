@@ -11,6 +11,20 @@ const updateKarma = async (targetType, targetId, delta) => {
     }
 };
 
+const notifyKarmaChange = async (targetType, targetId, target, actorId, delta) => {
+    if (delta === 0 || target.author.toString() === actorId) return;
+    await Notification.create({
+        recipient: target.author,
+        type: targetType === 'Post' ? 'upvote_post' : 'upvote_comment',
+        message: targetType === 'Post'
+            ? (delta > 0 ? 'Ваш пост отримав апвоут' : 'Карму вашого поста змінили')
+            : (delta > 0 ? 'Ваш коментар отримав апвоут' : 'Карму вашого коментаря змінили'),
+        fromUser: actorId,
+        post: targetType === 'Post' ? targetId : target.post,
+        comment: targetType === 'Comment' ? targetId : null
+    });
+};
+
 exports.vote = async (req, res) => {
     try {
         const { targetType, targetId, value } = req.body;
@@ -34,28 +48,20 @@ exports.vote = async (req, res) => {
             if (existingVote.value === value) {
                 await Vote.deleteOne({ _id: existingVote._id });
                 await updateKarma(targetType, targetId, -value);
+                await notifyKarmaChange(targetType, targetId, target, userId, -value);
                 return res.status(200).json({ success: true, message: 'Vote removed' });
             }
 
             await Vote.updateOne({ _id: existingVote._id }, { value });
             await updateKarma(targetType, targetId, value * 2);
+            await notifyKarmaChange(targetType, targetId, target, userId, value * 2);
             return res.status(200).json({ success: true, message: 'Vote updated' });
         }
 
         const vote = new Vote({ author: userId, targetType, target: targetId, value });
         await vote.save();
         await updateKarma(targetType, targetId, value);
-
-        if (value === 1 && target.author.toString() !== userId) {
-            await Notification.create({
-                recipient: target.author,
-                type: targetType === 'Post' ? 'upvote_post' : 'upvote_comment',
-                message: targetType === 'Post' ? 'Ваш пост отримав апвоут' : 'Ваш коментар отримав апвоут',
-                fromUser: userId,
-                post: targetType === 'Post' ? targetId : target.post,
-                comment: targetType === 'Comment' ? targetId : null
-            });
-        }
+        await notifyKarmaChange(targetType, targetId, target, userId, value);
 
         res.status(201).json({ success: true, message: 'Vote created' });
     } catch (error) {

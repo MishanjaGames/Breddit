@@ -25,6 +25,15 @@ const userSchema = new Schema({
         type: String,
         default: null
     },
+    banner: {
+        type: String,
+        default: null
+    },
+    status: {
+        type: String,
+        default: '',
+        maxlength: 100
+    },
     karma: {
         type: Number,
         default: 0

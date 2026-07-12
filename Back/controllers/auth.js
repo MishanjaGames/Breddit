@@ -16,6 +16,8 @@ const buildUserResponse = (user) => ({
     email: user.email,
     nickname: user.nickname,
     avatar: user.avatar,
+    banner: user.banner,
+    status: user.status,
     karma: user.karma
 })
 

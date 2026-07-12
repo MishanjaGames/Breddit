@@ -21,6 +21,11 @@ const categorySchema = new Schema({
         type: String,
         default: null
     },
+    status: {
+        type: String,
+        enum: ['public', 'restricted', 'private'],
+        default: 'public'
+    },
     rules: [{
         title: { type: String, trim: true, maxlength: 100 },
         body: { type: String, trim: true, maxlength: 500 }

@@ -4,7 +4,7 @@ const Subscription = require('../models/Subscription');
 // CREATE - создать категорию (спільноту)
 exports.createCategory = async (req, res) => {
     try {
-        const { name, description, icon, banner, rules } = req.body;
+        const { name, description, icon, banner, rules, status } = req.body;
 
         const category = await Category.create({
             name,
@@ -12,6 +12,7 @@ exports.createCategory = async (req, res) => {
             icon,
             banner,
             rules,
+            status,
             creator: req.user.id,
             subscriberCount: 1
         });
@@ -30,7 +31,7 @@ exports.createCategory = async (req, res) => {
 // READ - получить все категории (з ознакою підписки поточного юзера, якщо є токен)
 exports.getAllCategories = async (req, res) => {
     try {
-        const categories = await Category.find().sort({ subscriberCount: -1, createdAt: -1 }).lean();
+        const categories = await Category.find().sort({ subscriberCount: -1, createdAt: -1 }).populate('creator', 'nickname avatar').lean();
 
         if (req.user) {
             const subs = await Subscription.find({ user: req.user.id }).select('category').lean();
@@ -47,7 +48,7 @@ exports.getAllCategories = async (req, res) => {
 // READ - получить одну категорию по ID
 exports.getCategoryById = async (req, res) => {
     try {
-        const category = await Category.findById(req.params.id).lean();
+        const category = await Category.findById(req.params.id).populate('creator', 'nickname avatar').lean();
         if (!category) {
             return res.status(404).json({ message: 'Категория не найдена' });
         }
@@ -66,7 +67,7 @@ exports.getCategoryById = async (req, res) => {
 // UPDATE - обновить категорию (тільки творець спільноти)
 exports.updateCategory = async (req, res) => {
     try {
-        const { name, description, icon, banner, rules } = req.body;
+        const { name, description, icon, banner, rules, status } = req.body;
 
         const existing = await Category.findById(req.params.id);
         if (!existing) {
@@ -78,9 +79,9 @@ exports.updateCategory = async (req, res) => {
 
         const category = await Category.findByIdAndUpdate(
             req.params.id,
-            { name, description, icon, banner, rules },
+            { name, description, icon, banner, rules, status },
             { new: true, runValidators: true }
-        );
+        ).populate('creator', 'nickname avatar');
 
         res.status(200).json(category);
     } catch (error) {
@@ -157,7 +158,7 @@ exports.unsubscribe = async (req, res) => {
 // GET /api/categories/mine/subscribed - список спільнот, на які підписаний юзер
 exports.getMySubscriptions = async (req, res) => {
     try {
-        const subs = await Subscription.find({ user: req.user.id }).populate('category');
+        const subs = await Subscription.find({ user: req.user.id }).populate({ path: 'category', populate: { path: 'creator', select: 'nickname avatar' } });
         res.status(200).json(subs.map((s) => s.category).filter(Boolean));
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

@@ -84,6 +84,23 @@ exports.createPost = async (req, res) => {
         const post = new Post({ title, description, category, author, media });
         await post.save();
 
+        // уведомляем подписчиков спільноти про новий пост (крім самого автора)
+        const subs = await Subscription.find({ category }).select('user').lean();
+        const subscriberIds = [...new Set(subs.map((s) => s.user.toString()))]
+            .filter((uid) => uid !== author);
+        if (subscriberIds.length > 0) {
+            await Notification.insertMany(
+                subscriberIds.map((uid) => ({
+                    recipient: uid,
+                    type: 'new_post',
+                    message: `Новий пост у r/${categoryExists.name}`,
+                    fromUser: author,
+                    post: post._id,
+                    category: categoryExists._id
+                }))
+            );
+        }
+
         // уведомляем упомянутых юзеров (u/nickname или @nickname) в заголовке/описании поста
         const mentionedNicknames = extractMentionedNicknames(`${title} ${description}`);
         if (mentionedNicknames.length > 0) {
