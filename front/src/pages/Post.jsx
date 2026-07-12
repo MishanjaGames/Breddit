@@ -36,8 +36,8 @@ export default function Post() {
     resolveCategoryByName(name).then(async (cat) => {
       if (!cat || cancelled) return;
       setCategory(cat);
-      const { data } = await api.get('/posts', { params: { category: cat._id } });
-      const list = data.posts || data || [];
+      const { data } = await api.get(`/posts/category/${cat._id}`, { params: { limit: 300 } });
+      const list = Array.isArray(data) ? data : (data.posts || []);
       const filtered = list.filter((p) => (p.category?._id || p.category) === cat._id);
       const found = filtered.find((p) => p.title === decodeURIComponent(title));
       if (!cancelled) {

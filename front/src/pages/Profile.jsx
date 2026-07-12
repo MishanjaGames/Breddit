@@ -47,16 +47,12 @@ export default function Profile() {
   }, [nickname]);
 
   useEffect(() => {
-    // backend has no "posts by user" endpoint, so we page through /posts and filter client-side
     let cancelled = false;
     setPostsLoading(true);
-    api.get('/posts', { params: { limit: 100, sort: 'new' } })
+    api.get(`/posts/author/${encodeURIComponent(nickname)}`, { params: { limit: 100, sort: 'new' } })
       .then(({ data }) => {
         if (cancelled) return;
-        const list = (data.posts || data || []).filter(
-          (p) => (p.author?.nickname || p.author?.username) === nickname
-        );
-        setPosts(list);
+        setPosts(Array.isArray(data) ? data : (data.posts || []));
       })
       .catch(() => { if (!cancelled) setPosts([]); })
       .finally(() => { if (!cancelled) setPostsLoading(false); });

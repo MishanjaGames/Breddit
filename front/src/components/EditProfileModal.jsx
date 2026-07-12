@@ -11,8 +11,9 @@ export default function EditProfileModal({ profile, onClose, onSaved }) {
   const [bannerPreview, setBannerPreview] = useState(mediaUrl(profile.banner));
   const [avatarFile, setAvatarFile] = useState(null);
   const [bannerFile, setBannerFile] = useState(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(null); // null | 'tab' | 'all'
   const [error, setError] = useState('');
+  const [savedTab, setSavedTab] = useState(null);
   const avatarInputRef = useRef(null);
   const bannerInputRef = useRef(null);
 
@@ -30,36 +31,64 @@ export default function EditProfileModal({ profile, onClose, onSaved }) {
     reader.readAsDataURL(file);
   };
 
-  const submit = async (e) => {
+  const saveInfo = async () => {
+    const { data } = await api.put('/users/me', { nickname, status, bio });
+    onSaved?.(data.user);
+    return data.user;
+  };
+
+  const saveAvatar = async () => {
+    if (!avatarFile) return null;
+    const form = new FormData();
+    form.append('avatar', avatarFile);
+    const { data } = await api.put('/users/me/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+    onSaved?.({ avatar: data.avatar });
+    setAvatarFile(null);
+    return data;
+  };
+
+  const saveBanner = async () => {
+    if (!bannerFile) return null;
+    const form = new FormData();
+    form.append('banner', bannerFile);
+    const { data } = await api.put('/users/me/banner', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+    onSaved?.({ banner: data.banner });
+    setBannerFile(null);
+    return data;
+  };
+
+  // save only the currently open tab
+  const saveTab = async () => {
+    setBusy('tab');
+    setError('');
+    setSavedTab(null);
+    try {
+      if (tab === 'info') await saveInfo();
+      if (tab === 'avatar') await saveAvatar();
+      if (tab === 'banner') await saveBanner();
+      setSavedTab(tab);
+      setTimeout(() => setSavedTab((t) => (t === tab ? null : t)), 1500);
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Не вдалося зберегти зміни');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  // save every tab's changes at once, then close
+  const saveAll = async (e) => {
     e.preventDefault();
-    setBusy(true);
+    setBusy('all');
     setError('');
     try {
-      let patch = {};
-
-      const { data: profileData } = await api.put('/users/me', { nickname, status, bio });
-      patch = { ...patch, ...profileData.user };
-
-      if (avatarFile) {
-        const form = new FormData();
-        form.append('avatar', avatarFile);
-        const { data } = await api.put('/users/me/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } });
-        patch.avatar = data.avatar;
-      }
-
-      if (bannerFile) {
-        const form = new FormData();
-        form.append('banner', bannerFile);
-        const { data } = await api.put('/users/me/banner', form, { headers: { 'Content-Type': 'multipart/form-data' } });
-        patch.banner = data.banner;
-      }
-
-      onSaved?.(patch);
+      await saveInfo();
+      await saveAvatar();
+      await saveBanner();
       onClose();
     } catch (err) {
       setError(err?.response?.data?.message || 'Не вдалося зберегти зміни');
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
@@ -73,7 +102,7 @@ export default function EditProfileModal({ profile, onClose, onSaved }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-card modal-card-wide" onClick={(e) => e.stopPropagation()}>
         <button className="modal-close" onClick={onClose} aria-label="Закрити">✕</button>
-        <form className="edit-community-card" onSubmit={submit}>
+        <form className="edit-community-card" onSubmit={saveAll}>
           <h1>Редагувати профіль</h1>
           {error && <p className="auth-error">{error}</p>}
 
@@ -97,7 +126,7 @@ export default function EditProfileModal({ profile, onClose, onSaved }) {
                 <input
                   type="text"
                   value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
+                  onChange={(e) => setNickname(e.target.value.replace(/\s+/g, '_'))}
                   minLength={3}
                   maxLength={30}
                   pattern="[a-zA-Z0-9_]+"
@@ -156,9 +185,19 @@ export default function EditProfileModal({ profile, onClose, onSaved }) {
             </div>
           )}
 
-          <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
-            {busy ? 'Збереження…' : 'Зберегти зміни'}
-          </button>
+          <div className="edit-community-actions">
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={saveTab}
+              disabled={busy !== null}
+            >
+              {busy === 'tab' ? 'Збереження…' : savedTab === tab ? 'Збережено ✓' : 'Зберегти цю вкладку'}
+            </button>
+            <button className="btn btn-primary" type="submit" disabled={busy !== null}>
+              {busy === 'all' ? 'Збереження…' : 'Зберегти все'}
+            </button>
+          </div>
         </form>
       </div>
     </div>

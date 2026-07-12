@@ -25,7 +25,7 @@ export default function CreateCommunityModal() {
   const toast = useToast();
 
   const [step, setStep] = useState(0);
-  const [topic, setTopic] = useState(null);
+  const [topics, setTopics] = useState([]);
   const [type, setType] = useState('public');
   const [mature, setMature] = useState(false);
   const [name, setName] = useState('');
@@ -35,7 +35,7 @@ export default function CreateCommunityModal() {
   useEffect(() => {
     if (!open) {
       setStep(0);
-      setTopic(null);
+      setTopics([]);
       setType('public');
       setMature(false);
       setName('');
@@ -61,7 +61,7 @@ export default function CreateCommunityModal() {
     setBusy(true);
     try {
       // backend POST /api/categories accepts { name, description, icon, banner, rules, tags }
-      const { data } = await api.post('/categories', { name, description, tags: topic ? [topic] : [] });
+      const { data } = await api.post('/categories', { name, description, tags: topics });
       toast.success('Спільноту створено');
       close();
       navigate(`/r/${encodeURIComponent(data?.name || name)}`);
@@ -87,22 +87,28 @@ export default function CreateCommunityModal() {
           {step === 0 && (
             <div className="create-community-step">
               <h1>What will your community be about?</h1>
-              <p className="create-community-subtitle">Choose a topic to help redditors discover your community</p>
+              <p className="create-community-subtitle">Choose up to 3 topics to help redditors discover your community</p>
               <div className="topic-grid">
-                {TOPICS.map(([icon, label]) => (
-                  <button
-                    type="button"
-                    key={label}
-                    className={`topic-chip ${topic === label ? 'active' : ''}`}
-                    onClick={() => setTopic(label)}
-                  >
-                    <span>{icon}</span> {label}
-                  </button>
-                ))}
+                {TOPICS.map(([icon, label]) => {
+                  const active = topics.includes(label);
+                  return (
+                    <button
+                      type="button"
+                      key={label}
+                      className={`topic-chip ${active ? 'active' : ''}`}
+                      onClick={() => setTopics((prev) => (
+                        active ? prev.filter((t) => t !== label) : prev.length < 3 ? [...prev, label] : prev
+                      ))}
+                      disabled={!active && topics.length >= 3}
+                    >
+                      <span>{icon}</span> {label}
+                    </button>
+                  );
+                })}
               </div>
               <div className="create-community-footer">
                 <button type="button" className="btn btn-ghost" onClick={close}>Cancel</button>
-                <button type="button" className="btn btn-primary" onClick={next} disabled={!topic}>Next</button>
+                <button type="button" className="btn btn-primary" onClick={next} disabled={topics.length === 0}>Next</button>
               </div>
             </div>
           )}

@@ -1858,3 +1858,12 @@ img.avatar-dot, img.sub-icon {
 .community-tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
 .community-tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em;
   background: var(--chip-bg, #f0f1f3); border-radius: 999px; padding: 3px 10px; }
+
+/* Edit modal per-tab / save-all actions */
+.edit-community-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+.edit-community-actions .btn-outline { flex: 1; }
+.edit-community-actions .btn-primary { flex: 1; }

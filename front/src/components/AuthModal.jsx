@@ -66,7 +66,7 @@ export default function AuthModal() {
           {!isLogin && (
             <label>
               Ім'я користувача
-              <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required />
+              <input type="text" value={username} onChange={(e) => setUsername(e.target.value.replace(/\s+/g, '_'))} required />
             </label>
           )}
           <label>

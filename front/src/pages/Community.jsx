@@ -47,11 +47,10 @@ export default function Community() {
           const next = [cat.name, ...prev.filter((n) => n !== cat.name)].slice(0, 8);
           localStorage.setItem('recentCommunities', JSON.stringify(next));
         } catch { /* ignore */ }
-        api.get('/posts', { params: { category: cat._id, sort } })
+        api.get(`/posts/category/${cat._id}`, { params: { sort, limit: 300 } })
           .then(({ data }) => {
             if (cancelled) return;
-            const list = data.posts || data || [];
-            // backend's category filter is unreliable, so filter client-side too
+            const list = Array.isArray(data) ? data : (data.posts || []);
             const filtered = list.filter((p) => (p.category?._id || p.category) === cat._id);
             setPosts(filtered);
           })

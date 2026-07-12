@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
 
+const FIELDS = {
+  name: (s) => ({ name: s.name, description: s.description }),
+  avatar: (s) => ({ icon: s.icon }),
+  banner: (s) => ({ banner: s.banner }),
+  status: (s) => ({ status: s.status }),
+  tags: (s) => ({ tags: s.tags }),
+};
+
 export default function EditCommunityModal({ category, initialTarget, onClose, onSaved }) {
   const [tab, setTab] = useState(initialTarget === 'description' ? 'name' : (initialTarget || 'name'));
   const [name, setName] = useState(category.name || '');
@@ -10,8 +18,9 @@ export default function EditCommunityModal({ category, initialTarget, onClose, o
   const [status, setStatus] = useState(category.status || 'public');
   const [tags, setTags] = useState(category.tags || []);
   const [tagInput, setTagInput] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(null); // null | 'tab' | 'all'
   const [error, setError] = useState('');
+  const [savedTab, setSavedTab] = useState(null);
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -26,20 +35,42 @@ export default function EditCommunityModal({ category, initialTarget, onClose, o
     reader.readAsDataURL(file);
   };
 
-  const submit = async (e) => {
-    e.preventDefault();
-    setBusy(true);
+  const state = { name, description, icon, banner, status, tags };
+
+  const sendPatch = async (patch) => {
+    const { data } = await api.put(`/categories/${category._id}`, patch);
+    onSaved?.(data);
+    return data;
+  };
+
+  // save only the fields belonging to the currently open tab
+  const saveTab = async () => {
+    setBusy('tab');
     setError('');
-    // backend PUT /api/categories/:id accepts { name, description, icon, banner, rules }
-    const patch = { name, description, icon, banner, status, rules: category.rules || [], tags };
+    setSavedTab(null);
     try {
-      const { data } = await api.put(`/categories/${category._id}`, patch);
-      onSaved?.(data);
+      await sendPatch(FIELDS[tab](state));
+      setSavedTab(tab);
+      setTimeout(() => setSavedTab((t) => (t === tab ? null : t)), 1500);
+    } catch {
+      setError('Не вдалося зберегти зміни');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  // save every field across all tabs at once, then close
+  const saveAll = async (e) => {
+    e.preventDefault();
+    setBusy('all');
+    setError('');
+    try {
+      await sendPatch({ name, description, icon, banner, status, tags, rules: category.rules || [] });
       onClose();
     } catch {
       setError('Не вдалося зберегти зміни');
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
@@ -55,7 +86,7 @@ export default function EditCommunityModal({ category, initialTarget, onClose, o
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-card modal-card-wide" onClick={(e) => e.stopPropagation()}>
         <button className="modal-close" onClick={onClose} aria-label="Закрити">✕</button>
-        <form className="edit-community-card" onSubmit={submit}>
+        <form className="edit-community-card" onSubmit={saveAll}>
           <h1>Керувати спільнотою</h1>
           {error && <p className="auth-error">{error}</p>}
 
@@ -171,9 +202,19 @@ export default function EditCommunityModal({ category, initialTarget, onClose, o
             </div>
           )}
 
-          <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
-            {busy ? 'Збереження…' : 'Зберегти зміни'}
-          </button>
+          <div className="edit-community-actions">
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={saveTab}
+              disabled={busy !== null}
+            >
+              {busy === 'tab' ? 'Збереження…' : savedTab === tab ? 'Збережено ✓' : 'Зберегти цю вкладку'}
+            </button>
+            <button className="btn btn-primary" type="submit" disabled={busy !== null}>
+              {busy === 'all' ? 'Збереження…' : 'Зберегти все'}
+            </button>
+          </div>
         </form>
       </div>
     </div>
