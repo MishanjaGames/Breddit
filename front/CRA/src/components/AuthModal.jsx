@@ -1,0 +1,90 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useAuthModal } from '../context/AuthModalContext';
+import { useToast } from '../context/ToastContext';
+
+export default function AuthModal() {
+  const { mode, close, openLogin, openRegister } = useAuthModal();
+  const { login, register } = useAuth();
+  const toast = useToast();
+
+  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setEmail('');
+    setUsername('');
+    setPassword('');
+    setError('');
+  }, [mode]);
+
+  useEffect(() => {
+    if (!mode) return;
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [mode, close]);
+
+  if (!mode) return null;
+
+  const isLogin = mode === 'login';
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      if (isLogin) {
+        await login(email, password);
+        toast.success('Вхід виконано');
+      } else {
+        await register(email, username, password);
+        toast.success('Акаунт створено');
+      }
+      close();
+    } catch {
+      setError(isLogin ? 'Невірний email або пароль' : 'Не вдалося створити акаунт');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={close}>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close" onClick={close} aria-label="Закрити">✕</button>
+        <form className="auth-card auth-card-modal" onSubmit={submit}>
+          <h1>{isLogin ? 'Увійти' : 'Зареєструватися'}</h1>
+          {error && <p className="auth-error">{error}</p>}
+          <label>
+            Email
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+          </label>
+          {!isLogin && (
+            <label>
+              Ім'я користувача
+              <input type="text" value={username} onChange={(e) => setUsername(e.target.value.replace(/\s+/g, '_'))} required />
+            </label>
+          )}
+          <label>
+            Пароль
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          </label>
+          <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
+            {busy ? '…' : isLogin ? 'Увійти' : 'Зареєструватися'}
+          </button>
+          <p className="auth-switch">
+            {isLogin ? (
+              <>Немає акаунта? <button type="button" className="link-btn" onClick={openRegister}>Зареєструватися</button></>
+            ) : (
+              <>Вже є акаунт? <button type="button" className="link-btn" onClick={openLogin}>Увійти</button></>
+            )}
+          </p>
+        </form>
+      </div>
+    </div>
+  );
+}

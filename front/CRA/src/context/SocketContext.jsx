@@ -4,7 +4,7 @@ import { useAuth } from './AuthContext';
 
 // Derives the bare server origin (no /api suffix) that Socket.IO connects to,
 // since sockets talk to the HTTP server root rather than the REST prefix.
-const SOCKET_URL = (import.meta.env.VITE_API_URL || 'http://localhost:4000/api').replace(/\/api\/?$/, '');
+const SOCKET_URL = (process.env.REACT_APP_API_URL || 'http://localhost:4000/api').replace(/\/api\/?$/, '');
 
 const SocketContext = createContext(null);
 
