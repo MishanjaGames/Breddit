@@ -1,10 +1,22 @@
 require('dotenv').config();
 
-// Secrets are read from environment variables; the hardcoded values are
-// local-dev fallbacks only and must not be used in production.
+// Секреты читаются ТОЛЬКО из переменных окружения — реальные значения
+// (connection string, JWT secret) никогда не должны попадать в код/репозиторий.
+// Если переменная не задана — падаем сразу с понятной ошибкой, а не тихо
+// используем небезопасный дефолт или чужую базу данных.
+const required = (name) => {
+    const value = process.env[name];
+    if (!value) {
+        throw new Error(
+            `Missing required environment variable ${name}. Copy .env.example to .env and fill it in.`
+        );
+    }
+    return value;
+};
+
 module.exports = {
-    mongoUrl: process.env.MONGO_URL || 'mongodb+srv://mishanja:qwerty123@cluster0.oewbabf.mongodb.net/?appName=Cluster0',
-    jwtKey: process.env.JWT_SECRET || '777',
+    mongoUrl: required('MONGO_URL'),
+    jwtKey: required('JWT_SECRET'),
     // куда редиректить браузер после успешного OAuth-логина (адрес фронтенда)
     frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
     google: {
