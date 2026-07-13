@@ -8,6 +8,7 @@ import RecentPosts from '../components/RecentPosts';
 import PopularCommunities from '../components/PopularCommunities';
 import SideLegal from '../components/SideLegal';
 import { useAuth } from '../context/AuthContext';
+import { fetchWithHotFallback } from '../utils/sortFallback';
 
 // mode drives the base query sent to the backend + the empty-state copy.
 // 'best'    -> / (feed=all)
@@ -29,13 +30,17 @@ export default function Home({ mode = 'best' }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [view, setView] = useState(() => localStorage.getItem('feedView') || 'card');
+  const [usedFallback, setUsedFallback] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    api.get('/posts', { params: { sort, feed: config.feed } })
-      .then(({ data }) => { if (!cancelled) setPosts(data.posts || data || []); })
+    fetchWithHotFallback(
+      (s) => api.get('/posts', { params: { sort: s, feed: config.feed } }).then(({ data }) => ({ list: data.posts || data || [] })),
+      sort,
+    )
+      .then(({ list, usedFallback: fb }) => { if (!cancelled) { setPosts(list); setUsedFallback(fb); } })
       .catch(() => { if (!cancelled) setError('Не вдалося завантажити стрічку'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -63,6 +68,9 @@ export default function Home({ mode = 'best' }) {
 
         {loading && <p className="feed-status">Завантаження…</p>}
         {error && <p className="feed-status error">{error}</p>}
+        {usedFallback && !loading && !error && posts.length > 0 && (
+          <p className="feed-status feed-status-hint">У Hot поки що порожньо, показано New.</p>
+        )}
         {!loading && !error && posts.length === 0 && (
           <p className="feed-status">{config.emptyText}</p>
         )}

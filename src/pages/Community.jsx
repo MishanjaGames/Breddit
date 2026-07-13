@@ -5,6 +5,7 @@ import { resolveCategoryByName } from '../api/resolve';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useSocket } from '../context/SocketContext';
+import { useConfirm } from '../context/ConfirmContext';
 import PostCard from '../components/PostCard';
 import PostRowCompact from '../components/PostRowCompact';
 import PostListControls from '../components/PostListControls';
@@ -13,6 +14,7 @@ import ModerationPanel from '../components/ModerationPanel';
 import SideLegal from '../components/SideLegal';
 import { mediaUrl } from '../utils/media';
 import { tagDisplay } from '../utils/topics';
+import { fetchWithHotFallback } from '../utils/sortFallback';
 
 const PAGE_SIZE = 20;
 
@@ -29,6 +31,7 @@ export default function Community() {
   const { name } = useParams();
   const { user } = useAuth();
   const toast = useToast();
+  const confirm = useConfirm();
   const { socket } = useSocket();
   const [searchParams, setSearchParams] = useSearchParams();
   const sort = searchParams.get('sort') || 'hot';
@@ -44,6 +47,7 @@ export default function Community() {
   const [editTarget, setEditTarget] = useState(null); // 'avatar' | 'banner' | 'name' | null
   const [rulesOpen, setRulesOpen] = useState({});
   const [modOpen, setModOpen] = useState(false);
+  const [usedFallback, setUsedFallback] = useState(false);
   const [mobileTab, setMobileTab] = useState('posts'); // 'posts' | 'about' — only used below 900px
   const sentinelRef = useRef(null);
 
@@ -62,13 +66,19 @@ export default function Community() {
           const next = [cat.name, ...prev.filter((n) => n !== cat.name)].slice(0, 8);
           localStorage.setItem('recentCommunities', JSON.stringify(next));
         } catch { /* ignore */ }
-        api.get(`/posts/category/${cat._id}`, { params: { sort, page: 1, limit: PAGE_SIZE } })
-          .then(({ data }) => {
+        fetchWithHotFallback(
+          (s) => api.get(`/posts/category/${cat._id}`, { params: { sort: s, page: 1, limit: PAGE_SIZE } })
+            .then(({ data }) => {
+              const list = Array.isArray(data) ? data : (data.posts || []);
+              return { list: list.filter((p) => (p.category?._id || p.category) === cat._id), totalPages: data.totalPages || 1 };
+            }),
+          sort,
+        )
+          .then(({ list, totalPages, usedFallback: fb }) => {
             if (cancelled) return;
-            const list = Array.isArray(data) ? data : (data.posts || []);
-            const filtered = list.filter((p) => (p.category?._id || p.category) === cat._id);
-            setPosts(filtered);
-            setTotalPages(data.totalPages || 1);
+            setPosts(list);
+            setTotalPages(totalPages);
+            setUsedFallback(fb);
           })
           .catch(() => {});
       }
@@ -160,9 +170,9 @@ export default function Community() {
   const toggleRule = (i) => setRulesOpen((o) => ({ ...o, [i]: !o[i] }));
 
   const addRule = async () => {
-    const title = window.prompt('Назва правила (до 100 символів):');
+    const title = await confirm.prompt('Назва правила (до 100 символів):');
     if (!title || !title.trim()) return;
-    const body = window.prompt('Опис правила (необов\'язково):') || '';
+    const body = (await confirm.prompt('Опис правила (необов\'язково):')) || '';
     const nextRules = [...(category.rules || []), { title: title.trim(), body: body.trim() }];
     try {
       const { data } = await api.put(`/categories/${category._id}`, {
@@ -307,6 +317,9 @@ export default function Community() {
       <div className="community-body">
         <div className={`feed-content ${mobileTab === 'about' ? 'community-mobile-hidden' : ''}`}>
           <PostListControls sort={sort} onSortChange={setSortParam} view={view} onViewChange={setView2} />
+          {usedFallback && posts.length > 0 && (
+            <p className="feed-status feed-status-hint">У Hot поки що порожньо, показано New.</p>
+          )}
           <div className={view === 'compact' ? 'post-list post-list-compact' : 'post-list'}>
             {posts.length === 0 && <p className="feed-status">У цій спільноті ще немає постів.</p>}
             {posts.map((post) => (
@@ -391,7 +404,7 @@ export default function Community() {
               </button>
               <div className="mod-list">
                 <Link
-                  to={`/user/${category.creator.nickname || category.creator}`}
+                  to={`/u/${category.creator.nickname || category.creator}`}
                   className="mod-row"
                 >
                   <span className="avatar-dot small">{(category.creator.nickname || '?')[0]?.toUpperCase()}</span>

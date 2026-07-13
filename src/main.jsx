@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import { ConfirmProvider } from './context/ConfirmContext';
 import { AuthModalProvider } from './context/AuthModalContext';
 import { CreateCommunityModalProvider } from './context/CreateCommunityModalContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -18,11 +19,13 @@ root.render(
         <AuthProvider>
           <SocketProvider>
             <ToastProvider>
-              <AuthModalProvider>
-                <CreateCommunityModalProvider>
-                  <App />
-                </CreateCommunityModalProvider>
-              </AuthModalProvider>
+              <ConfirmProvider>
+                <AuthModalProvider>
+                  <CreateCommunityModalProvider>
+                    <App />
+                  </CreateCommunityModalProvider>
+                </AuthModalProvider>
+              </ConfirmProvider>
             </ToastProvider>
           </SocketProvider>
         </AuthProvider>

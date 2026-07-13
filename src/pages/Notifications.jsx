@@ -15,7 +15,7 @@ const TYPE_META = {
 };
 
 function notificationLink(n) {
-  if (n.type === 'follow' && n.fromUser) return `/user/${n.fromUser.nickname}`;
+  if (n.type === 'follow' && n.fromUser) return `/u/${n.fromUser.nickname}`;
   if (n.post?.categoryName) return `/r/${encodeURIComponent(n.post.categoryName)}/p/${encodeURIComponent(n.post.title)}`;
   if (n.category) return `/r/${encodeURIComponent(n.category.name)}`;
   return null;

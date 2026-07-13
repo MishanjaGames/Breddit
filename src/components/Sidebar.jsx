@@ -145,25 +145,13 @@ export default function Sidebar({ collapsed, onToggleSidebar, mobileOpen, onClos
             <span>РЕСУРСИ</span>
             <span className={`chevron ${open.resources ? 'open' : ''}`}>˅</span>
           </button>
-          {/* {open.resources && (
-            <div className="side-section-body">
-              <span className="side-link static">Про Breddit</span>
-              <span className="side-link static">Реклама</span>
-              <span className="side-link static">Платформа розробника</span>
-              <span className="side-link static">Breddit Pro <em className="beta-tag">BETA</em></span>
-              <span className="side-link static">Довідка</span>
-              <span className="side-link static">Блог</span>
-              <span className="side-link static">Кар'єра</span>
-              <span className="side-link static">Преса</span>
-            </div>
-          )} */}
           {open.resources && (
             <div className="side-section-body">
-              <span className="side-link static">Про Breddit</span>
-              <span className="side-link static">Правила Breddit</span>
-              <span className="side-link static">Політика конфіденційності</span>
-              <span className="side-link static">Угода користувача</span>
-              <span className="side-link static">Доступність <em className="beta-tag">BETA</em></span>
+              <NavLink to="/about" className="side-link">Про Breddit</NavLink>
+              <NavLink to="/rules" className="side-link">Правила Breddit</NavLink>
+              <NavLink to="/privacy" className="side-link">Політика конфіденційності</NavLink>
+              <NavLink to="/terms" className="side-link">Угода користувача</NavLink>
+              <NavLink to="/accessibility" className="side-link">Доступність <em className="beta-tag">BETA</em></NavLink>
             </div>
           )}
         </div>

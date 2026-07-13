@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../api/client';
 import timeAgo from '../utils/timeAgo';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 import AuthorBadge, { getAuthorRole } from './AuthorBadge';
 import MediaGallery from './MediaGallery';
 import MediaPicker from './MediaPicker';
@@ -11,6 +12,7 @@ import MarkdownText from '../utils/markdown.jsx';
 
 export default function CommentThread({ comment, postAuthorId, onReplyAdded, onDeleted, isModerator, depth = 0, targetCommentId }) {
   const { user } = useAuth();
+  const confirm = useConfirm();
   const [score, setScore] = useState(comment.karma ?? 0);
   const [myVote, setMyVote] = useState(comment.myVote || null);
   const [collapsed, setCollapsed] = useState(false);
@@ -66,7 +68,8 @@ export default function CommentThread({ comment, postAuthorId, onReplyAdded, onD
   };
 
   const deleteComment = async () => {
-    if (!window.confirm('Видалити цей коментар?')) return;
+    const ok = await confirm.confirm('Видалити цей коментар?');
+    if (!ok) return;
     setDeleting(true);
     try {
       await api.delete(`/comments/${comment._id}`);
@@ -93,7 +96,7 @@ export default function CommentThread({ comment, postAuthorId, onReplyAdded, onD
             {collapsed ? '[+]' : '[–]'}
           </button>
           {authorName && (
-            <Link to={`/user/${authorName}`} className="comment-author">u/{authorName}</Link>
+            <Link to={`/u/${authorName}`} className="comment-author">u/{authorName}</Link>
           )}
           <AuthorBadge role={role} />
           <span className="post-dot">·</span>

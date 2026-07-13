@@ -1,7 +1,8 @@
 // backend serves uploads statically at {API_ORIGIN}/uploads/<path>
 // media.url in Post/Comment docs is stored as "media/xxx.jpg", avatar as "avatars/xxx.jpg"
-const API_URL = import.meta.env.VITE_API_URL || '/api';
-export const API_ORIGIN = API_URL.replace(/\/api\/?$/, '');
+import { API_ORIGIN } from '../config/env';
+
+export { API_ORIGIN };
 
 export function mediaUrl(relPath) {
   if (!relPath) return null;

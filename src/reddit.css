@@ -548,7 +548,8 @@ input, textarea { font-family: inherit; }
 }
 @media (max-width: 899px) {
   .community-mobile-hidden { display: none; }
-  .community-side.community-mobile-visible { display: block; }
+  .community-side.community-mobile-visible,
+  .profile-side.community-mobile-visible { display: block; }
 }
 
 .side-card {
@@ -834,8 +835,56 @@ input, textarea { font-family: inherit; }
 }
 .auth-card input:focus, .auth-card textarea:focus { outline: none; border-color: var(--blue); }
 .auth-error { color: var(--accent); margin: 0; font-size: 13px; }
+.feed-status-hint { color: var(--text-muted); font-size: 13px; margin: 0 0 8px; }
 .auth-switch { text-align: center; color: var(--text-muted); font-size: 13px; margin: 0; }
 .auth-switch a { color: var(--blue); }
+
+.confirm-card { max-width: 360px; display: flex; flex-direction: column; gap: 14px; }
+.confirm-message { margin: 0; white-space: pre-wrap; }
+.confirm-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+  color: var(--text);
+}
+.confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+.password-field { position: relative; display: flex; }
+.password-field input { flex: 1; padding-right: 40px !important; }
+.password-eye-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}
+.password-eye-btn:hover { color: var(--text); }
+
+.auth-divider { display: flex; align-items: center; gap: 10px; color: var(--text-muted); font-size: 12px; margin: 2px 0; }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.btn-google:hover { background: var(--border); }
+
+.static-page { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
+.static-page h1 { margin: 0 0 16px; font-size: 22px; }
+.static-page-body { display: flex; flex-direction: column; gap: 12px; color: var(--text); }
+.static-page-body .rules-list { padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
 
 /* ---------- Auth modal ---------- */
 .modal-overlay {
@@ -946,16 +995,20 @@ input, textarea { font-family: inherit; }
   background-size: cover;
   background-position: center;
   margin-bottom: -32px;
+  display: none;
 }
+@media (min-width: 900px) { .profile-banner { display: block; } }
 
 .profile-header {
   display: flex;
   align-items: center;
   gap: 16px;
   margin-bottom: 16px;
+  margin-top: 8px;
   position: relative;
   padding: 0 4px;
 }
+@media (min-width: 900px) { .profile-header { margin-top: 0; } }
 .profile-header .avatar-dot.large {
   border: 3px solid var(--bg);
   box-shadow: 0 0 0 1px var(--border);
@@ -1012,7 +1065,9 @@ input, textarea { font-family: inherit; }
   background: linear-gradient(135deg, var(--accent, #4a9eff), var(--border));
   background-size: cover;
   background-position: center;
+  display: none;
 }
+@media (max-width: 899px) { .profile-card-banner { display: block; } }
 .profile-card-avatar-v2 {
   margin: -28px 0 0 16px;
   width: 56px;
@@ -1024,6 +1079,10 @@ input, textarea { font-family: inherit; }
 }
 .profile-card-avatar-v2 .avatar-dot.large { width: 100%; height: 100%; }
 .profile-card-body { padding: 8px 16px 0; }
+.profile-card-body-noavatar { padding-top: 16px; }
+.profile-card-body-noavatar h3 { text-align: center; }
+.profile-bio-block { margin: 4px 0 12px; }
+.profile-bio-label { margin: 0 0 4px; font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.02em; }
 .profile-card-actions-row {
   display: flex;
   gap: 8px;

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import api from '../api/client';
 import { mediaUrl } from '../utils/media';
+import { useConfirm } from '../context/ConfirmContext';
 
 export default function EditProfileModal({ profile, onClose, onSaved }) {
+  const confirm = useConfirm();
   const [tab, setTab] = useState('info');
   const [nickname, setNickname] = useState(profile.nickname || '');
   const [status, setStatus] = useState(profile.status || '');
@@ -28,9 +30,10 @@ export default function EditProfileModal({ profile, onClose, onSaved }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [infoDirty]);
 
-  const requestClose = () => {
+  const requestClose = async () => {
     if (infoDirty) {
-      if (!window.confirm('У вас є незбережені зміни профілю. Закрити без збереження?')) return;
+      const ok = await confirm.confirm('У вас є незбережені зміни профілю. Закрити без збереження?');
+      if (!ok) return;
     }
     onClose();
   };

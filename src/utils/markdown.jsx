@@ -20,7 +20,7 @@ function resolveUserLinks(node) {
     if (id && nicknameCache.has(id)) {
       const nick = nicknameCache.get(id);
       a.textContent = `u/${nick}`;
-      a.setAttribute('href', a.getAttribute('href').replace(id, nick));
+      a.setAttribute('href', `/u/${nick}`);
       return true;
     }
     return false;

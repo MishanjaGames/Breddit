@@ -104,7 +104,7 @@ export default function RepostPost() {
             {authorName && (
               <>
                 <span className="post-dot">·</span>
-                <Link to={`/user/${authorName}`} className="post-author-link">u/{authorName}</Link>
+                <Link to={`/u/${authorName}`} className="post-author-link">u/{authorName}</Link>
                 <AuthorBadge role={authorRole} />
               </>
             )}

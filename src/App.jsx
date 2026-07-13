@@ -16,6 +16,8 @@ import SubmitPost from './pages/SubmitPost';
 import Profile from './pages/Profile';
 import Notifications from './pages/Notifications';
 import Drafts from './pages/Drafts';
+import OAuthCallback from './pages/OAuthCallback';
+import { AboutPage, RulesPage, PrivacyPage, TermsPage, AccessibilityPage } from './pages/StaticPages';
 
 export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -47,6 +49,13 @@ export default function App() {
             <Route path="/r/:name/p/:title" element={<Post />} />
             <Route path="/r/:name/p/:title/repost" element={<RepostPost />} />
             <Route path="/r/:name" element={<Community />} />
+            <Route path="/oauth/callback" element={<OAuthCallback />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/rules" element={<RulesPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/accessibility" element={<AccessibilityPage />} />
+            <Route path="/user/:nickname" element={<Profile />} />
             <Route path="/u/:nickname" element={<Profile />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="*" element={<p className="feed-status">Сторінку не знайдено.</p>} />

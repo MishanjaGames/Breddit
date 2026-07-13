@@ -1,10 +1,10 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { API_ORIGIN } from '../config/env';
 
-// Derives the bare server origin (no /api suffix) that Socket.IO connects to,
-// since sockets talk to the HTTP server root rather than the REST prefix.
-const SOCKET_URL = (import.meta.env.VITE_API_URL || 'http://localhost:4000/api').replace(/\/api\/?$/, '');
+// Sockets talk to the bare server origin (no /api suffix), unlike REST calls.
+const SOCKET_URL = API_ORIGIN;
 
 const SocketContext = createContext(null);
 

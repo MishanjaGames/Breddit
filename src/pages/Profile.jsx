@@ -10,14 +10,15 @@ import EditProfileModal from '../components/EditProfileModal';
 import PostCard from '../components/PostCard';
 import ProfileCommentCard from '../components/ProfileCommentCard';
 
-const TABS = ['Пости', 'Коментарі', 'Про акаунт'];
+const TABS = ['Пости', 'Коментарі'];
 const PAGE_SIZE = 20;
 
-function formatAge(dateStr) {
-  const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
-  if (days < 30) return `${days} дн.`;
-  if (days < 365) return `${Math.floor(days / 30)} міс.`;
-  return `${Math.floor(days / 365)} р.`;
+function formatDate(dateStr) {
+  try {
+    return new Date(dateStr).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' });
+  } catch {
+    return null;
+  }
 }
 
 export default function Profile() {
@@ -32,6 +33,7 @@ export default function Profile() {
   const [following, setFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [mobileTab, setMobileTab] = useState('posts'); // 'posts' | 'about' — only used below 900px
 
   // posts tab state
   const [posts, setPosts] = useState([]);
@@ -167,7 +169,7 @@ export default function Profile() {
     toast.success('Профіль оновлено');
     // nickname change moves the profile URL, since the route is keyed on it
     if (patch.nickname && patch.nickname !== nickname) {
-      navigate(`/user/${encodeURIComponent(patch.nickname)}`, { replace: true });
+      navigate(`/u/${encodeURIComponent(patch.nickname)}`, { replace: true });
     }
   };
 
@@ -177,7 +179,7 @@ export default function Profile() {
   const avatarSrc = mediaUrl(profile.avatar);
   const bannerSrc = mediaUrl(profile.banner);
   const totalKarma = (profile.postKarma ?? 0) + (profile.commentKarma ?? 0);
-  const accountAge = profile.createdAt ? formatAge(profile.createdAt) : null;
+  const registrationDate = profile.createdAt ? formatDate(profile.createdAt) : null;
   const profileUpdatedRecently = profile.updatedAt && profile.createdAt && profile.updatedAt !== profile.createdAt;
 
   return (
@@ -205,6 +207,24 @@ export default function Profile() {
           )}
         </header>
 
+        <div className="community-mobile-tabs">
+          <button
+            type="button"
+            className={`community-mobile-tab ${mobileTab === 'posts' ? 'active' : ''}`}
+            onClick={() => setMobileTab('posts')}
+          >
+            Posts
+          </button>
+          <button
+            type="button"
+            className={`community-mobile-tab ${mobileTab === 'about' ? 'active' : ''}`}
+            onClick={() => setMobileTab('about')}
+          >
+            About
+          </button>
+        </div>
+
+        <div className={mobileTab === 'about' ? 'community-mobile-hidden' : ''}>
         <div className="profile-tabs">
           {TABS.map((t) => (
             <button
@@ -242,34 +262,18 @@ export default function Profile() {
             {commentsLoadingMore && <p className="feed-status">Завантаження…</p>}
           </div>
         )}
-
-        {tab === 'Про акаунт' && (
-          <article className="post-card comment-item">
-            <header className="post-card-head">
-              <span className="post-sub-link">About me</span>
-            </header>
-            <p className="post-desc">{profile.bio || 'Опис відсутній.'}</p>
-          </article>
-        )}
+        </div>
       </div>
 
-      <aside className="profile-side">
+      <aside className={`profile-side ${mobileTab === 'about' ? 'community-mobile-visible' : ''}`}>
         <div className="side-card profile-card profile-card-v2">
           <div
             className="profile-card-banner"
             style={bannerSrc ? { backgroundImage: `url(${bannerSrc})` } : undefined}
           />
-          <div className="profile-card-avatar profile-card-avatar-v2">
-            {avatarSrc ? (
-              <img className="avatar-dot large" src={avatarSrc} alt="" />
-            ) : (
-              <span className="avatar-dot large">{nickname?.[0]?.toUpperCase()}</span>
-            )}
-          </div>
 
-          <div className="profile-card-body">
+          <div className="profile-card-body profile-card-body-noavatar">
             <h3>{nickname}</h3>
-            <span className="post-meta-text">u/{nickname}</span>
             {profile.status && <p className="profile-status-line profile-status-line-centered">{profile.status}</p>}
 
             <div className="profile-card-actions profile-card-actions-row">
@@ -300,6 +304,13 @@ export default function Profile() {
 
             <p className="profile-follower-line">{profile.followerCount ?? 0} підписників</p>
 
+            {profile.bio && (
+              <div className="profile-bio-block">
+                <strong>About me</strong>
+                <p className="community-desc" style={{ padding: 0, margin: 0 }}>{profile.bio}</p>
+              </div>
+            )}
+
             <div className="profile-stats-grid">
               <div className="profile-stats-cell">
                 <strong>{totalKarma}</strong>
@@ -309,10 +320,10 @@ export default function Profile() {
                 <strong>{(profile.postCount ?? 0) + (profile.commentCount ?? 0)}</strong>
                 <span>Внесок</span>
               </div>
-              {accountAge && (
+              {registrationDate && (
                 <div className="profile-stats-cell">
-                  <strong>{accountAge}</strong>
-                  <span>Вік акаунта</span>
+                  <strong>{registrationDate}</strong>
+                  <span>Дата реєстрації</span>
                 </div>
               )}
               <div className="profile-stats-cell">

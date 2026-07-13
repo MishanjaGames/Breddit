@@ -60,7 +60,7 @@ export default function PostRowCompact({ post }) {
           {authorName && (
             <span className="post-author-hide-group">
               <span className="post-dot">·</span>
-              <Link to={`/user/${authorName}`} className="post-author-link">u/{authorName}</Link>
+              <Link to={`/u/${authorName}`} className="post-author-link">u/{authorName}</Link>
               <AuthorBadge role={authorRole} />
             </span>
           )}

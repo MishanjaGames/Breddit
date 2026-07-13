@@ -38,7 +38,7 @@ export default function UserMenu({ modOn, onToggleMod }) {
 
       {open && (
         <div className="user-menu-dropdown">
-          <Link to={`/user/${user.nickname}`} className="user-menu-item user-menu-item-primary" onClick={() => setOpen(false)}>
+          <Link to={`/u/${user.nickname}`} className="user-menu-item user-menu-item-primary" onClick={() => setOpen(false)}>
             {avatarSrc ? (
               <img className="avatar-dot small" src={avatarSrc} alt="" />
             ) : (

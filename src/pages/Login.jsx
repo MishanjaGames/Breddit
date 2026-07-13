@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import PasswordField from '../components/PasswordField';
+import GoogleAuthButton from '../components/GoogleAuthButton';
 
 export default function Login() {
   const { login } = useAuth();
@@ -38,11 +40,13 @@ export default function Login() {
         </label>
         <label>
           Пароль
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} required />
         </label>
         <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
           {busy ? 'Вхід…' : 'Увійти'}
         </button>
+        <div className="auth-divider">або</div>
+        <GoogleAuthButton label="Увійти через Google" />
         <p className="auth-switch">Немає акаунта? <Link to="/register">Зареєструватися</Link></p>
       </form>
     </div>

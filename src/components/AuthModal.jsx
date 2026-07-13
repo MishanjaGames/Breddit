@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useAuthModal } from '../context/AuthModalContext';
 import { useToast } from '../context/ToastContext';
+import PasswordField from './PasswordField';
+import GoogleAuthButton from './GoogleAuthButton';
 
 export default function AuthModal() {
   const { mode, close, openLogin, openRegister } = useAuthModal();
@@ -11,6 +13,7 @@ export default function AuthModal() {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -18,6 +21,7 @@ export default function AuthModal() {
     setEmail('');
     setUsername('');
     setPassword('');
+    setConfirmPassword('');
     setError('');
   }, [mode]);
 
@@ -34,8 +38,12 @@ export default function AuthModal() {
 
   const submit = async (e) => {
     e.preventDefault();
-    setBusy(true);
     setError('');
+    if (!isLogin && password !== confirmPassword) {
+      setError('Паролі не співпадають');
+      return;
+    }
+    setBusy(true);
     try {
       if (isLogin) {
         await login(email, password);
@@ -71,11 +79,19 @@ export default function AuthModal() {
           )}
           <label>
             Пароль
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} required />
           </label>
+          {!isLogin && (
+            <label>
+              Повторіть пароль
+              <PasswordField value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+            </label>
+          )}
           <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
             {busy ? '…' : isLogin ? 'Увійти' : 'Зареєструватися'}
           </button>
+          <div className="auth-divider">або</div>
+          <GoogleAuthButton label={isLogin ? 'Увійти через Google' : 'Зареєструватися через Google'} />
           <p className="auth-switch">
             {isLogin ? (
               <>Немає акаунта? <button type="button" className="link-btn" onClick={openRegister}>Зареєструватися</button></>

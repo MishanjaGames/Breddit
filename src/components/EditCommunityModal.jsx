@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import api from '../api/client';
 import { TOPICS, MAX_TAGS, tagDisplay } from '../utils/topics';
+import { useConfirm } from '../context/ConfirmContext';
 
 export default function EditCommunityModal({ category, initialTarget, onClose, onSaved }) {
+  const confirm = useConfirm();
   const [tab, setTab] = useState(initialTarget === 'description' ? 'name' : (initialTarget || 'name'));
   const [name, setName] = useState(category.name || '');
   const [description, setDescription] = useState(category.description || '');
@@ -37,9 +39,10 @@ export default function EditCommunityModal({ category, initialTarget, onClose, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anyDirty]);
 
-  const requestClose = () => {
+  const requestClose = async () => {
     if (anyDirty) {
-      if (!window.confirm('У вас є незбережені зміни спільноти. Закрити без збереження?')) return;
+      const ok = await confirm.confirm('У вас є незбережені зміни спільноти. Закрити без збереження?');
+      if (!ok) return;
     }
     onClose();
   };
