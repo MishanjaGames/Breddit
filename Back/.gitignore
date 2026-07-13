@@ -20,7 +20,8 @@
 .env.production.local
 
 # uploaded files (avatars, post/comment media) — not source controlled
-#/uploads
+uploads/**/*
+!uploads/**/.gitkeep
 
 npm-debug.log*
 yarn-debug.log*
