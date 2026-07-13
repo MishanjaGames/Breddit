@@ -47,7 +47,7 @@ export default function App() {
             <Route path="/r/:name/p/:title" element={<Post />} />
             <Route path="/r/:name/p/:title/repost" element={<RepostPost />} />
             <Route path="/r/:name" element={<Community />} />
-            <Route path="/user/:nickname" element={<Profile />} />
+            <Route path="/u/:nickname" element={<Profile />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="*" element={<p className="feed-status">Сторінку не знайдено.</p>} />
           </Routes>
