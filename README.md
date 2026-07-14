@@ -1,155 +1,106 @@
-# Breddit — Backend
+# Breddit — Frontend
 
-REST API + WebSocket сервер для проєкту Breddit (Reddit-подібна платформа: спільноти, пости, коментарі, голосування, підписки, сповіщення).
+SPA-клієнт для проєкту Breddit (Reddit-подібна платформа: спільноти, пости, коментарі, голосування, підписки, сповіщення).
 
-Стек: Node.js / Express 5, MongoDB (Mongoose), JWT-автентифікація (Passport), Socket.IO, Multer (завантаження файлів).
+Стек: React 19, React Router 7, Vite 6, Axios, Socket.IO client.
 
-Цей README описує запуск **backend + MongoDB**. Якщо ваш frontend лежить в окремому репозиторії/гілці — розділ [Frontend](#3-запуск-frontend) внизу потрібно доповнити реальними командами вашого проєкту (`npm install` / `npm run dev` тощо) та вказати правильний `VITE_API_URL` / `REACT_APP_API_URL`.
+Цей README описує запуск **frontend**, який ходить до окремого backend (Express + MongoDB). Перед запуском переконайтесь, що backend піднятий — див. його README (розділ "Запуск Backend").
 
 ---
 
 ## 1. Вимоги
 
 - Node.js 18+ і npm
-- MongoDB 6/7 (локально, у Docker, або MongoDB Atlas)
-- (опційно) Docker + Docker Compose, якщо не хочете ставити Mongo локально
+- Запущений backend API (локально на `http://localhost:4000` або на іншому origin)
 
 ---
 
-## 2. Запуск Backend
-
-### 2.1. Клонування і встановлення залежностей
+## 2. Встановлення
 
 ```bash
 git clone <URL_РЕПОЗИТОРІЮ>
-cd <назва_папки>/Breddit-release_Backend   # або відповідна назва беку у вашому репо
+cd <назва_папки>/Breddit-release_Frontend   # або відповідна назва фронта у вашому репо
 npm install
 ```
 
-### 2.2. Налаштування змінних оточення
+---
 
-Реальний `.env` **не** зберігається в репозиторії (він у `.gitignore`). Скопіюйте приклад і заповніть своїми значеннями:
+## 3. Налаштування змінних оточення
+
+Реальний `.env` **не** зберігається в репозиторії (він у `.gitignore`). Скопіюйте приклад і заповніть своїм значенням:
 
 ```bash
 cp .env.example .env
 ```
 
-Мінімально необхідні змінні у `.env`:
-
 | Змінна | Опис | Приклад |
 |---|---|---|
-| `MONGO_URL` | Рядок підключення до MongoDB | `mongodb://localhost:27017/Breddit` |
-| `JWT_SECRET` | Довгий випадковий рядок для підпису JWT | `openssl rand -hex 32` |
-| `CORS_ORIGIN` | Дозволені origin'и фронтенда (через кому) | `http://localhost:3000` |
-| `PORT` | Порт, на якому підніметься API (локально) | `4000` |
-| `FRONTEND_URL` | Куди редіректити після OAuth-логіна | `http://localhost:3000` |
+| `VITE_API_URL` | Адреса backend API (**без** `/api` і без завершального `/`) | `http://localhost:4000` |
 
-Google/Facebook OAuth змінні (`GOOGLE_CLIENT_ID`, `FACEBOOK_APP_ID` тощо) — опційні. Якщо залишити їх порожніми, відповідні `/api/auth/google` і `/api/auth/facebook` роути просто повертатимуть 503, решта застосунку (email/password реєстрація і логін) працює без них.
+> **Важливо:** вказуйте саме origin сервера (`http://localhost:4000`), а не `http://localhost:4000/api` — суфікс `/api` фронтенд додає сам (`src/config/env.js`). Той самий origin використовується і для роздачі статичних медіа (`/uploads/...`).
 
-> **Важливо:** сервер тепер **не запускається**, якщо `MONGO_URL` або `JWT_SECRET` не задані — це навмисно, щоб ніхто випадково не задеплоїв застосунок з дефолтним/чужим секретом (`config/keys.js`).
-
-### 2.3. Запуск MongoDB
-
-**Варіант А — Docker Compose (рекомендовано, піднімає і Mongo, і API одразу):**
-
-```bash
-docker compose up --build
-```
-
-Це підніме:
-- `mongo` — MongoDB 7 на порту `27017`, з даними у volume `mongodata` (переживають перезапуск контейнера)
-- `api` — сам backend на порту `4000`
-
-Для Docker Compose змінні беруться з вашого `.env` у корені (docker-compose підхоплює `${JWT_SECRET}` тощо автоматично).
-
-**Варіант Б — Mongo локально без Docker:**
-
-Встановіть MongoDB Community Server і запустіть службу (`mongod`), переконайтесь що `MONGO_URL=mongodb://localhost:27017/Breddit` у `.env`.
-
-**Варіант В — MongoDB Atlas (хмара):**
-
-Створіть безкоштовний кластер на [mongodb.com/atlas](https://www.mongodb.com/atlas), додайте свою IP-адресу в Network Access, отримайте connection string і вставте його в `MONGO_URL` (замінивши `<password>` на реальний пароль користувача бази).
-
-### 2.4. Запуск сервера
-
-```bash
-npm run dev     # nodemon, з автоперезапуском
-# або
-npm start       # звичайний запуск
-```
-
-При успішному старті в консолі буде:
-
-```
-MongoDB connected
-Server started on 4000 (HTTP + WebSocket)
-```
-
-Перевірка, що API живий:
-
-```bash
-curl http://localhost:4000/
-# -> Breddit backend is running
-```
+Origin, з якого запускається фронтенд (за замовчуванням `http://localhost:3000`), має збігатися зі значенням `CORS_ORIGIN` на backend, інакше запити впадуть з CORS-помилкою.
 
 ---
 
-## 3. Запуск Frontend
-
-> Заповнити реальними командами вашого фронтенд-репозиторію/гілки після мержу. Орієнтовний приклад:
+## 4. Запуск
 
 ```bash
-cd <папка_фронтенда>
-npm install
-# у .env фронтенда вкажіть адресу backend API, наприклад:
-# VITE_API_URL=http://localhost:4000/api
 npm run dev
 ```
 
-Фронтенд має ходити на `http://localhost:4000/api/...` (або на ваш `PORT`), а сам фронтенд — працювати на origin, який прописаний у backend-змінній `CORS_ORIGIN` (за замовчуванням `http://localhost:3000`), інакше запити впадуть з CORS-помилкою.
+Vite підніме dev-сервер на `http://localhost:3000` (порт заданий у `vite.config.js`).
 
-Завантажені файли (аватарки, банери, медіа постів/коментарів) роздаються backend'ом статично за адресою `http://localhost:4000/uploads/...`.
+Перевірка, що фронтенд ходить до правильного API: відкрийте DevTools → Network і переконайтесь, що запити йдуть на `<VITE_API_URL>/api/...` і повертають 200/401 (а не CORS/`ERR_CONNECTION_REFUSED`).
+
+### Продакшн-збірка
+
+```bash
+npm run build      # збірка у папку build/
+npm run preview    # локальний перегляд production-збірки
+```
 
 ---
 
-## 4. Огляд API
+## 5. Структура проєкту
 
-Базовий префікс: `/api`. Захищені роути потребують заголовок `Authorization: Bearer <token>` (токен видається `/api/auth/login` або `/api/auth/register`).
-
-| Модуль | Приклади ендпоінтів |
+| Папка | Призначення |
 |---|---|
-| Auth | `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `POST /auth/logout`, `POST /auth/refresh`, `GET /auth/google`, `GET /auth/facebook` |
-| Users | `GET /users/:nickname`, `PUT /users/me`, `PUT /users/me/avatar`, `POST /users/:nickname/follow`, `GET /users/:nickname/followers` |
-| Categories (спільноти) | `GET /categories`, `POST /categories`, `POST /categories/:id/subscribe`, модерація (`ban`/`mute`/`moderators`) |
-| Posts | `GET /posts`, `POST /posts`, `GET /posts/:id`, `POST /posts/:id/save`, `POST /posts/:id/approve` |
-| Comments | `GET /comments/post/:postId`, `POST /comments`, `PUT /comments/:id` |
-| Votes | `POST /votes` (`{ targetType: 'Post'|'Comment', targetId, value: 1|-1 }`) |
-| Search | `GET /search?q=...` — повертає пости, спільноти **і користувачів**, що відповідають запиту |
-| Notifications | `GET /notifications`, `GET /notifications/unread-count`, `PATCH /notifications/:id/read` |
-
-Реалтайм-події (Socket.IO, з тим самим JWT у `auth: { token }` при підключенні): нові сповіщення, оновлення голосів, кімнати `category:<id>` і `post:<id>` для лайв-оновлень фіда/коментарів.
+| `src/pages` | Сторінки-маршрути: Home, Explore, Search, Community, Post, Profile, Drafts, Notifications, ManageCommunities, TagCommunities, Login/Register, OAuthCallback |
+| `src/components` | Перевикористовувані UI-блоки: PostCard, CommentThread, VoteButtons, MediaCarousel/Gallery/Lightbox/Picker, MarkdownEditor, ContentBlockEditor, Navbar, Sidebar, ModerationPanel, AuthModal та інші |
+| `src/context` | React Context-провайдери: Auth, AuthModal, Confirm, CreateCommunityModal, Socket, Theme, Toast |
+| `src/api` | Обгортка над Axios (`client.js`) — базовий URL, JWT з `localStorage` у заголовку `Authorization`; `resolve.js` — допоміжні функції побудови посилань (медіа тощо) |
+| `src/config/env.js` | Читає `VITE_API_URL`, формує `API_ORIGIN` і `API_URL` (`+/api`) |
+| `src/utils` | Допоміжні утиліти |
 
 ---
 
-## 5. Сценарій демонстрації на захисті
+## 6. Взаємодія з Backend
 
-Мінімальний прохідний сценарій (усе працює одразу після чистого клонування + `npm install` + піднятого Mongo):
-
-1. **Реєстрація** — `POST /api/auth/register`
-2. **Вхід** — `POST /api/auth/login`
-3. **Створення спільноти** — `POST /api/categories`
-4. **Створення поста** в цій спільноті — `POST /api/posts`
-5. **Коментар** до поста — `POST /api/comments`
-6. **Голосування** за пост/коментар — `POST /api/votes`
-7. **Пошук користувача** за нікнеймом — `GET /api/search?q=<нікнейм>` (повертає масив `users`)
-8. **Перегляд профілю** знайденого користувача — `GET /api/users/:nickname`
-
-Додатково варто показати: вихід (`POST /api/auth/logout`), підписку на спільноту (`POST /api/categories/:id/subscribe`), збережені пости (`POST /api/posts/:id/save`), сповіщення (`GET /api/notifications`) і завантаження аватара (`PUT /api/users/me/avatar`).
-
-Усі дані зберігаються в MongoDB (колекції `users`, `categories`, `posts`, `comments`, `votes`, `follows`, `subscriptions`, `saveditems`, `notifications`) — після перезапуску сервера дані нікуди не зникають, доки не перезапущено сам MongoDB-контейнер без volume.
+- REST-запити — через `src/api/client.js` (Axios instance з базовим URL `API_URL` і автопідстановкою JWT з `localStorage`).
+- Реалтайм — Socket.IO client (`src/context/SocketContext.jsx`) підключається до того ж origin, що й API, передаючи JWT-токен при handshake; використовується для live-оновлень сповіщень, голосів і фіда.
+- Формати ендпоінтів (auth, users, categories, posts, comments, votes, search, notifications) описані в README backend.
 
 ---
 
-## 6. Безпека / .env
+## 7. Сценарій демонстрації на захисті
 
-- `.env` з реальними значеннями **ніколи не комітиться** — він у `.gitignore`. У репозиторії лежить лише `.env.example` із заглушками.
+Мінімальний прохідний сценарій (backend піднятий, `.env` налаштований, `npm run dev`):
+
+1. **Реєстрація / вхід** — сторінки `Register` / `Login` (або Google OAuth через `OAuthCallback`)
+2. **Створення спільноти** — `ManageCommunities`
+3. **Створення поста** в цій спільноті — `SubmitPost`
+4. **Коментар** до поста — сторінка `Post`, `CommentThread`
+5. **Голосування** за пост/коментар — `VoteButtons`
+6. **Пошук** користувача/спільноти/поста — сторінка `Search`
+7. **Перегляд профілю** — `Profile`
+8. **Чернетки** — `Drafts` (незавершені пости зберігаються локально до публікації)
+9. **Сповіщення** — `Notifications` (оновлюються в реальному часі через Socket.IO)
+
+---
+
+## 8. Безпека / .env
+
+- `.env` з реальними значеннями **ніколи не комітиться** — він у `.gitignore`. У репозиторії лежить лише `.env.example` із заглушкою.
+- JWT зберігається в `localStorage` і додається до кожного запиту через axios-interceptor (`src/api/client.js`); токен ніколи не хардкодиться в коді.
+- Усі звернення до захищених ресурсів backend перевіряють токен на сервері — фронтенд лише приховує/показує UI залежно від стану `AuthContext`, не покладаючись на це як на єдиний захист.
