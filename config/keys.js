@@ -15,6 +15,9 @@ const required = (name) => {
 };
 
 module.exports = {
+    appName: process.env.APP_NAME || 'Breddit',
+    emailLogoUrl: process.env.EMAIL_LOGO_URL || null,
+    companyName: process.env.COMPANY_NAME || "badlycoded.dev",
     mongoUrl: required('MONGO_URL'),
     jwtKey: required('JWT_SECRET'),
     // куда редиректить браузер после успешного OAuth-логина (адрес фронтенда)

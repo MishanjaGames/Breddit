@@ -1,127 +1,149 @@
-const https = require('https');
+const emailjs = require('@emailjs/nodejs');
 const keys = require('../config/keys');
 
 // ---------------------------------------------------------------------------
-// Отправка почты через EmailJS REST API (https://api.emailjs.com/api/v1.0/email/send).
-// Идея: в EmailJS создаётся ОДИН generic-шаблон с плейсхолдерами
-// {{subject}}, {{title}}, {{message}}, {{action_url}}, {{action_label}}, {{to_email}}.
-// Разные "письма" (verify email / reset password / password changed) — это просто
-// разные наборы параметров (шаблоны ниже), отправляемые в этот единственный EmailJS-шаблон.
-// Если EmailJS не сконфигурирован (нет ключей в .env) — используется nodemailer (SMTP)
-// как резервный вариант, либо, если и он не настроен, письмо просто логируется в консоль.
+// Відправка пошти через @emailjs/nodejs.
+//
+// EmailJS сам по собі погано підставляє {{link}}/{{email}} всередині вкладених
+// HTML-атрибутів (href і т.п.) — тому замість того, щоб покладатись на його
+// внутрішню підстановку змінних, ми РЕНДЕРИМО ПОВНИЙ HTML листа тут, на бекенді,
+// і передаємо його одним-єдиним параметром {{html}}.
+//
+// У самому EmailJS-шаблоні (template_id) достатньо одного поля Content,
+// куди вставляється сира змінна {{{html}}} (потрібне саме "Insert as HTML" /
+// перемикання типу поля на HTML при вставці змінної — інакше розмітка
+// потрапить на екран як текст, як на твоєму скріншоті).
+//
+// Це дозволяє мати ОДИН generic template в EmailJS, а всі "види" листів
+// (verify email / reset password / password changed) — це просто різні
+// HTML-рядки, зібрані нижче з одного базового лейауту.
 // ---------------------------------------------------------------------------
 
-const EMAILJS_ENDPOINT = 'api.emailjs.com';
-
-const sendViaEmailJs = (templateParams) => new Promise((resolve, reject) => {
-    const payload = JSON.stringify({
-        service_id: keys.emailjs.serviceId,
-        template_id: keys.emailjs.templateId,
-        user_id: keys.emailjs.publicKey,
-        accessToken: keys.emailjs.privateKey || undefined,
-        template_params: templateParams
+let initialized = false;
+const ensureInit = () => {
+    if (initialized) return;
+    emailjs.init({
+        publicKey: keys.emailjs.publicKey,
+        privateKey: keys.emailjs.privateKey || undefined
     });
-
-    const req = https.request({
-        hostname: EMAILJS_ENDPOINT,
-        path: '/api/v1.0/email/send',
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(payload)
-        }
-    }, (res) => {
-        let body = '';
-        res.on('data', (chunk) => { body += chunk; });
-        res.on('end', () => {
-            if (res.statusCode >= 200 && res.statusCode < 300) return resolve(body);
-            reject(new Error(`EmailJS error ${res.statusCode}: ${body}`));
-        });
-    });
-
-    req.on('error', reject);
-    req.write(payload);
-    req.end();
-});
-
-let nodemailerTransport = null;
-const getNodemailerTransport = () => {
-    if (nodemailerTransport) return nodemailerTransport;
-    if (!keys.smtp.host) return null;
-    const nodemailer = require('nodemailer');
-    nodemailerTransport = nodemailer.createTransport({
-        host: keys.smtp.host,
-        port: keys.smtp.port,
-        secure: keys.smtp.port === 465,
-        auth: keys.smtp.user ? { user: keys.smtp.user, pass: keys.smtp.pass } : undefined
-    });
-    return nodemailerTransport;
+    initialized = true;
 };
 
-const sendViaSmtp = async ({ to, subject, html, text }) => {
-    const transport = getNodemailerTransport();
-    if (!transport) return false;
-    await transport.sendMail({ from: keys.smtp.from, to, subject, html, text });
-    return true;
+const escapeHtml = (str = '') => String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+const COMPANY_NAME = keys.companyName || 'badlycoded.dev';
+const APP_NAME = keys.appName || 'Breddit';
+const WEBSITE_LINK = process.env.FRONTEND_URL || '#';
+const LOGO_URL = keys.emailLogoUrl || `${WEBSITE_LINK}/favicon.ico`;
+
+/**
+ * Базовий лейаут листа (шапка з лого + біла картка з контентом + сірий футер).
+ */
+const renderLayout = ({ heading, bodyHtml, to }) => `
+<div style="font-family: system-ui, sans-serif, Arial; font-size: 14px; color: #333; padding: 20px 14px; background-color: #f5f5f5;">
+  <div style="max-width: 600px; margin: auto; background-color: #fff">
+    <div style="text-align: center; background-color: #333; padding: 14px">
+      <a style="text-decoration: none; outline: none" href="${WEBSITE_LINK}" target="_blank">
+        <img style="height: 32px; vertical-align: middle" height="32px" src="${LOGO_URL}" alt="logo" />
+      </a>
+    </div>
+    <div style="padding: 14px">
+      <h1 style="font-size: 22px; margin-bottom: 26px">${heading}</h1>
+      ${bodyHtml}
+      <p>Best regards,<br />${APP_NAME} Team</p>
+    </div>
+  </div>
+  <div style="max-width: 600px; margin: auto">
+    <p style="color: #999">
+      The email was sent to ${escapeHtml(to)}<br />
+      You received this email because you are registered with ${APP_NAME}
+    </p>
+  </div>
+</div>`.trim();
+
+const renderActionEmail = ({ to, heading, paragraphs, link, linkExpiry }) => {
+    const bodyHtml = [
+        ...paragraphs.map((p) => `<p>${p}</p>`),
+        link ? `<p><a href="${link}">${escapeHtml(link)}</a></p>` : '',
+        linkExpiry ? `<p>${linkExpiry}</p>` : ''
+    ].filter(Boolean).join('\n      ');
+
+    return renderLayout({ heading, bodyHtml, to });
 };
 
 /**
- * Отправляет письмо. Пробует EmailJS -> SMTP (nodemailer) -> лог в консоль (dev-фолбэк).
- * @param {{to: string, subject: string, title: string, message: string, actionUrl?: string, actionLabel?: string}} opts
+ * Надсилає лист через EmailJS. `html` — вже повністю зібрана розмітка листа.
  */
-const sendMail = async ({ to, subject, title, message, actionUrl = '', actionLabel = '' }) => {
-    const templateParams = {
-        to_email: to,
-        subject,
-        title,
-        message,
-        action_url: actionUrl,
-        action_label: actionLabel
-    };
-
-    if (keys.emailjs.serviceId && keys.emailjs.templateId && keys.emailjs.publicKey) {
-        try {
-            await sendViaEmailJs(templateParams);
-            return;
-        } catch (e) {
-            console.error('[email] EmailJS send failed, falling back to SMTP:', e.message);
-        }
+const sendMail = async ({ to, subject, html }) => {
+    if (!keys.emailjs.serviceId || !keys.emailjs.templateId || !keys.emailjs.publicKey) {
+        console.warn(`[email:DEV] EmailJS не налаштовано. To: ${to} | Subject: ${subject}`);
+        return;
     }
 
-    const html = `<h2>${title}</h2><p>${message}</p>${actionUrl ? `<p><a href="${actionUrl}">${actionLabel || actionUrl}</a></p>` : ''}`;
-    const sentViaSmtp = await sendViaSmtp({ to, subject, html, text: `${title}\n\n${message}\n\n${actionUrl}` });
-    if (sentViaSmtp) return;
+    ensureInit();
 
-    // Ничего не сконфигурировано (локальная разработка без ключей) — просто логируем,
-    // чтобы флоу (получение токена по ссылке из письма) можно было проверить в консоли.
-    console.warn(`[email:DEV] To: ${to} | Subject: ${subject} | ${message} ${actionUrl}`);
+    const templateParams = {
+        email: to,
+        to_email: to,
+        subject,
+        html
+    };
+
+    try {
+        await emailjs.send(keys.emailjs.serviceId, keys.emailjs.templateId, templateParams);
+    } catch (e) {
+        console.error('[email] EmailJS send failed:', e?.text || e?.message || e);
+        throw e;
+    }
 };
 
-// ---------- Шаблоны конкретных писем (все идут через один EmailJS template_id выше) ----------
+// ---------- Конкретні листи (усі йдуть через один EmailJS template_id вище) ----------
 
 exports.sendVerificationEmail = (to, verifyUrl) => sendMail({
     to,
     subject: 'Підтвердіть вашу пошту',
-    title: 'Підтвердження email',
-    message: 'Дякуємо за реєстрацію! Підтвердіть свою email-адресу, натиснувши кнопку нижче. Посилання дійсне 24 години.',
-    actionUrl: verifyUrl,
-    actionLabel: 'Підтвердити email'
+    html: renderActionEmail({
+        to,
+        heading: 'Підтвердіть вашу email-адресу',
+        paragraphs: [
+            'Дякуємо за реєстрацію! Підтвердіть свою email-адресу, натиснувши посилання нижче:'
+        ],
+        link: verifyUrl,
+        linkExpiry: 'Посилання дійсне 24 години.'
+    })
 });
 
 exports.sendPasswordResetEmail = (to, resetUrl) => sendMail({
     to,
     subject: 'Скидання пароля',
-    title: 'Скидання пароля',
-    message: 'Ви (або хтось інший) запросили скидання пароля для цього акаунта. Якщо це були не ви — просто проігноруйте цей лист. Посилання дійсне 1 годину.',
-    actionUrl: resetUrl,
-    actionLabel: 'Скинути пароль'
+    html: renderActionEmail({
+        to,
+        heading: 'You have requested a password change',
+        paragraphs: [
+            'We received a request to reset the password for your account. To proceed, please click the link below to create a new password:'
+        ],
+        link: resetUrl,
+        linkExpiry: 'This link will expire in one hour.'
+    }).replace(
+        '<p>Best regards,',
+        '<p>If you didn\'t request this password reset, please ignore this email or let us know immediately. Your account remains secure.</p>\n      <p>Best regards,'
+    )
 });
 
 exports.sendPasswordChangedEmail = (to) => sendMail({
     to,
     subject: 'Пароль змінено',
-    title: 'Пароль успішно змінено',
-    message: 'Пароль вашого акаунта щойно було змінено. Якщо це були не ви — негайно скористайтесь формою скидання пароля та зверніться до підтримки.'
+    html: renderActionEmail({
+        to,
+        heading: 'Ваш пароль було змінено',
+        paragraphs: [
+            'Пароль вашого акаунта щойно було змінено. Якщо це були не ви — негайно скористайтесь формою скидання пароля та зверніться до підтримки.'
+        ]
+    })
 });
 
 exports.sendMail = sendMail;
