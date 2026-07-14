@@ -45,8 +45,39 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  // backend: POST /api/auth/forgot-password { email } -> { success, message }
+  const forgotPassword = async (email) => {
+    const { data } = await api.post('/auth/forgot-password', { email });
+    return data;
+  };
+
+  // backend: POST /api/auth/reset-password { token, password } -> { success, message }
+  const resetPassword = async (token, password) => {
+    const { data } = await api.post('/auth/reset-password', { token, password });
+    return data;
+  };
+
+  // backend: PUT /api/auth/change-password { currentPassword, newPassword } (auth) -> { success, message }
+  const changePassword = async (currentPassword, newPassword) => {
+    const { data } = await api.put('/auth/change-password', { currentPassword, newPassword });
+    return data;
+  };
+
+  // backend: POST /api/auth/verify-email { token } -> { success, message }
+  const verifyEmail = async (token) => {
+    const { data } = await api.post('/auth/verify-email', { token });
+    setUser((prev) => (prev ? { ...prev, emailVerified: true } : prev));
+    return data;
+  };
+
+  // backend: POST /api/auth/resend-verification (auth) -> { success, message }
+  const resendVerification = async () => {
+    const { data } = await api.post('/auth/resend-verification');
+    return data;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, setUser, loading, login, register, logout, forgotPassword, resetPassword, changePassword, verifyEmail, resendVerification }}>
       {children}
     </AuthContext.Provider>
   );

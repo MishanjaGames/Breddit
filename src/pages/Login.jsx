@@ -47,6 +47,7 @@ export default function Login() {
         </button>
         <div className="auth-divider">або</div>
         <GoogleAuthButton label="Увійти через Google" />
+        <p className="auth-switch"><Link to="/forgot-password">Забули пароль?</Link></p>
         <p className="auth-switch">Немає акаунта? <Link to="/register">Зареєструватися</Link></p>
       </form>
     </div>

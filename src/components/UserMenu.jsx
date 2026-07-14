@@ -51,6 +51,10 @@ export default function UserMenu({ modOn, onToggleMod }) {
             <span className="user-menu-icon">📝</span> Drafts
           </Link>
 
+          <Link to="/settings" className="user-menu-item" onClick={() => setOpen(false)}>
+            <span className="user-menu-icon">⚙️</span> Settings
+          </Link>
+
           <button className="user-menu-item" onClick={toggleTheme}>
             <span className="user-menu-icon">{theme === 'light' ? '🌙' : '☀️'}</span>
             {theme === 'light' ? 'Dark Mode' : 'Light Mode'}

@@ -17,6 +17,12 @@ import Profile from './pages/Profile';
 import Notifications from './pages/Notifications';
 import Drafts from './pages/Drafts';
 import OAuthCallback from './pages/OAuthCallback';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Settings from './pages/Settings';
+import ResetPassword from './pages/ResetPassword';
+import ForgotPassword from './components/ForgotPassword';
+import VerifyEmail from './components/VerifyEmail';
 import { AboutPage, RulesPage, PrivacyPage, TermsPage, AccessibilityPage } from './pages/StaticPages';
 
 export default function App() {
@@ -50,6 +56,12 @@ export default function App() {
             <Route path="/r/:name/p/:title/repost" element={<RepostPost />} />
             <Route path="/r/:name" element={<Community />} />
             <Route path="/oauth/callback" element={<OAuthCallback />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/rules" element={<RulesPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />

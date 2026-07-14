@@ -90,6 +90,11 @@ export default function AuthModal() {
           <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
             {busy ? '…' : isLogin ? 'Увійти' : 'Зареєструватися'}
           </button>
+          {isLogin && (
+            <p className="auth-switch">
+              <a href="/forgot-password" onClick={close}>Забули пароль?</a>
+            </p>
+          )}
           <div className="auth-divider">або</div>
           <GoogleAuthButton label={isLogin ? 'Увійти через Google' : 'Зареєструватися через Google'} />
           <p className="auth-switch">
