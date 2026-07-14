@@ -33,5 +33,22 @@ module.exports = {
         connectionString: required('AZURE_STORAGE_CONNECTION_STRING'),
         // один контейнер на аватарки и банеры, они лежат в нём под префиксами avatars/ и banners/
         containerName: process.env.AZURE_STORAGE_CONTAINER || 'avatars'
+    },
+    // ---------- Почта ----------
+    // EmailJS: один общий шаблон (template_id) используется для всех видов писем,
+    // конкретный "тип" письма определяется параметрами (subject/title/message), см. utils/email.js
+    emailjs: {
+        serviceId: process.env.EMAILJS_SERVICE_ID || null,
+        templateId: process.env.EMAILJS_TEMPLATE_ID || null,
+        publicKey: process.env.EMAILJS_PUBLIC_KEY || null,
+        privateKey: process.env.EMAILJS_PRIVATE_KEY || null
+    },
+    // SMTP — резервный вариант отправки почты, если EmailJS не настроен/недоступен
+    smtp: {
+        host: process.env.SMTP_HOST || null,
+        port: Number(process.env.SMTP_PORT || 587),
+        user: process.env.SMTP_USER || null,
+        pass: process.env.SMTP_PASS || null,
+        from: process.env.SMTP_FROM || 'no-reply@breddit.local'
     }
 }

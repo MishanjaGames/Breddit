@@ -60,7 +60,15 @@ const userSchema = new Schema({
         type: String,
         default: '',
         maxlength: 300
-    }
+    },
+    emailVerified: {
+        type: Boolean,
+        default: false
+    },
+    emailVerifyTokenHash: { type: String, default: null },
+    emailVerifyExpires: { type: Date, default: null },
+    resetPasswordTokenHash: { type: String, default: null },
+    resetPasswordExpires: { type: Date, default: null }
 }, {
     timestamps: true
 });

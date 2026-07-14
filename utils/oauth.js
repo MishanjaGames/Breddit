@@ -37,6 +37,7 @@ exports.findOrCreateOAuthUser = async ({ provider, providerId, email, displayNam
         user = await User.findOne({ email: email.toLowerCase() });
         if (user) {
             user[field] = providerId;
+            if (!user.emailVerified) user.emailVerified = true;
             await user.save();
             return user;
         }
@@ -47,7 +48,10 @@ exports.findOrCreateOAuthUser = async ({ provider, providerId, email, displayNam
     user = new User({
         nickname,
         email: email ? email.toLowerCase() : `${provider}_${providerId}@no-email.oauth`,
-        [field]: providerId
+        [field]: providerId,
+        // провайдер (Google/Facebook) уже подтвердил владение email — не заставляем
+        // OAuth-юзера ещё раз подтверждать его через письмо
+        emailVerified: !!email
     });
 
     await user.save();

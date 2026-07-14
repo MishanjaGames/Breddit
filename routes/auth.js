@@ -14,6 +14,15 @@ router.get('/me', protect, controller.me)
 router.post('/logout', protect, controller.logout)
 router.post('/refresh', controller.refresh)
 
+// ---------- Email confirmation ----------
+router.post('/resend-verification', protect, authLimiter, controller.resendVerification)
+router.post('/verify-email', authLimiter, controller.verifyEmail)
+
+// ---------- Forgot / reset password ----------
+router.post('/forgot-password', authLimiter, controller.forgotPassword)
+router.post('/reset-password', authLimiter, controller.resetPassword)
+router.put('/change-password', protect, authLimiter, controller.changePassword)
+
 // ---------- Google OAuth ----------
 router.get('/google', (req, res, next) => {
     if (!keys.google.clientId) {

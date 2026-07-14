@@ -6,7 +6,6 @@ const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-
 
 const validateEmailFormat = (value) => typeof value === 'string' && EMAIL_REGEX.test(value.trim());
 
-// Популярные одноразовые/временные почтовые сервисы — их сразу отсекаем
 const DISPOSABLE_DOMAINS = new Set([
     'mailinator.com', 'tempmail.com', 'temp-mail.org', '10minutemail.com',
     'guerrillamail.com', 'guerrillamail.info', 'throwawaymail.com', 'yopmail.com',
