@@ -14,7 +14,7 @@
   "type": "commonjs",
   "dependencies": {
     "@azure/storage-blob": "^12.24.0",
-    "@emailjs/browser": "^4.4.1",
+    "@emailjs/nodejs": "^5.0.2",
     "bcrypt": "^6.0.0",
     "body-parser": "^2.3.0",
     "cors": "^2.8.6",
