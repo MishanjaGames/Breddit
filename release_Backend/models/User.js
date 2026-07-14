@@ -8,14 +8,17 @@ const userSchema = new Schema({
         required: true,
         unique: true,
         trim: true,
-        minlength: 3
+        minlength: 3,
+        maxlength: 20,
+        match: [/^[a-zA-Z0-9_]+$/, 'Nickname can only contain letters, numbers and underscores']
     },
     email: {
         type: String,
         required: true,
         unique: true,
         lowercase: true,
-        trim: true
+        trim: true,
+        match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Invalid email format']
     },
     password: {
         type: String,

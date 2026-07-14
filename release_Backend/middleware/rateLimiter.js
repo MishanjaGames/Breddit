@@ -8,11 +8,12 @@ exports.authLimiter = rateLimit({
     message: { success: false, message: 'Too many requests, please try again later.' }
 });
 
-// базовый кулдаун на загрузку/удаление аватарки: не чаще 1 запроса в 2 секунды
-// на одного пользователя (защита от спама аплоадами/дискового I/O)
+// базовый кулдаун на загрузку/удаление аватарки: до 5 запросов за 10 секунд
+// на одного пользователя (защита от спама аплоадами, но не мешает штатной
+// последовательности upload -> replace -> delete в рамках одной сессии)
 exports.avatarLimiter = rateLimit({
-    windowMs: 2 * 1000,
-    max: 1,
+    windowMs: 10 * 1000,
+    max: 5,
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => (req.user ? req.user.id : ipKeyGenerator(req.ip)),

@@ -1,5 +1,4 @@
-const path = require('path');
-const fs = require('fs');
+const { deleteBlobByUrl } = require('../utils/azureBlob');
 
 const User = require('../models/User');
 const Post = require('../models/Post');
@@ -14,13 +13,17 @@ const Category = require('../models/Category');
 const { removeMediaFiles } = require('../middleware/mediaUpload');
 
 const DEFAULT_AVATAR = null; // фронтенд сам рисует дефолтную аватарку, когда avatar === null
-const AVATARS_DIR = path.join(__dirname, '..', 'uploads');
 
-// удаляет файл предыдущей аватарки/банера, если он был реально загружен (не null)
-const removeOldAvatar = (avatar) => {
-    if (!avatar) return;
-    const oldPath = path.join(AVATARS_DIR, avatar);
-    fs.unlink(oldPath, () => {}); // не критично, если файла уже нет
+// удаляет предыдущий blob аватарки/банера из Azure Blob Storage, если он был реально загружен (не null).
+// Не критично, если blob уже нет или Azure недоступен на секунду — старый файл просто останется висеть,
+// это не должно ронять сохранение нового аватара/сброс на дефолтный.
+const removeOldAvatar = async (avatarUrl) => {
+    if (!avatarUrl) return;
+    try {
+        await deleteBlobByUrl(avatarUrl);
+    } catch (err) {
+        console.error('Failed to delete old avatar/banner blob:', err.message);
+    }
 };
 
 // PUT /api/users/me -> обновить нікнейм/статус/біо текущего юзера
@@ -143,15 +146,15 @@ exports.updateAvatar = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Пользователь не найден' });
         }
 
-        removeOldAvatar(user.avatar);
+        await removeOldAvatar(user.avatar);
 
-        user.avatar = `avatars/${req.file.filename}`;
+        user.avatar = req.file.blobUrl;
         await user.save();
 
         res.status(200).json({
             success: true,
             avatar: user.avatar,
-            avatarUrl: `/uploads/${user.avatar}`
+            avatarUrl: user.avatar
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -166,7 +169,7 @@ exports.deleteAvatar = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Пользователь не найден' });
         }
 
-        removeOldAvatar(user.avatar);
+        await removeOldAvatar(user.avatar);
 
         user.avatar = DEFAULT_AVATAR;
         await user.save();
@@ -189,15 +192,15 @@ exports.updateBanner = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Пользователь не найден' });
         }
 
-        removeOldAvatar(user.banner);
+        await removeOldAvatar(user.banner);
 
-        user.banner = `avatars/${req.file.filename}`;
+        user.banner = req.file.blobUrl;
         await user.save();
 
         res.status(200).json({
             success: true,
             banner: user.banner,
-            bannerUrl: `/uploads/${user.banner}`
+            bannerUrl: user.banner
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -212,7 +215,7 @@ exports.deleteBanner = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Пользователь не найден' });
         }
 
-        removeOldAvatar(user.banner);
+        await removeOldAvatar(user.banner);
 
         user.banner = null;
         await user.save();
@@ -334,8 +337,8 @@ exports.deleteAccount = async (req, res) => {
         ownComments.forEach((c) => removeMediaFiles(c.media));
 
         // видаляємо файли аватара/банера
-        removeOldAvatar(user.avatar);
-        removeOldAvatar(user.banner);
+        await removeOldAvatar(user.avatar);
+        await removeOldAvatar(user.banner);
 
         await Promise.all([
             Post.deleteMany({ author: userId }),

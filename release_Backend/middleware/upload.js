@@ -1,21 +1,11 @@
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const crypto = require('crypto');
+const { uploadBuffer } = require('../utils/azureBlob');
 
-// uploads/avatars хранит загруженные файлы, отдаётся статикой из server.js под /uploads
-const uploadDir = path.join(__dirname, '..', 'uploads', 'avatars');
-fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, uploadDir),
-    filename: (req, file, cb) => {
-        const ext = path.extname(file.originalname).toLowerCase();
-        // req.user доступен, т.к. роут защищён middleware protect и стоит перед upload
-        const unique = `${req.user.id}-${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`;
-        cb(null, unique);
-    }
-});
+// файл парсится в память (не на диск) — дальше буфер целиком уходит в Azure Blob Storage,
+// на диске сервера ничего не остаётся
+const storage = multer.memoryStorage();
 
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB — увеличено, чтобы анимированные GIF помещались с запасом
@@ -30,10 +20,11 @@ const fileFilter = (req, file, cb) => {
 const avatarUpload = multer({ storage, limits: { fileSize: MAX_FILE_SIZE }, fileFilter }).single('avatar');
 const bannerUpload = multer({ storage, limits: { fileSize: MAX_FILE_SIZE }, fileFilter }).single('banner');
 
-// Оборачиваем multer, чтобы его ошибки (превышен размер, неверный тип)
-// возвращались клиенту как 400, а не падали в общий 500-обработчик.
-const wrap = (uploadFn) => (req, res, next) => {
-    uploadFn(req, res, (err) => {
+// Оборачиваем multer: сначала парсим файл в память, затем заливаем буфер в Azure Blob Storage
+// и кладём итоговый публичный URL в req.file.blobUrl (используется контроллером).
+// Ошибки multer (размер/тип) возвращаются клиенту как 400, а не падают в общий 500-обработчик.
+const wrap = (uploadFn, folder) => (req, res, next) => {
+    uploadFn(req, res, async (err) => {
         if (err instanceof multer.MulterError) {
             const message = err.code === 'LIMIT_FILE_SIZE'
                 ? `Файл слишком большой. Максимум ${MAX_FILE_SIZE / 1024 / 1024} МБ`
@@ -43,9 +34,18 @@ const wrap = (uploadFn) => (req, res, next) => {
         if (err) {
             return res.status(400).json({ success: false, message: err.message || 'Ошибка загрузки файла' });
         }
-        next();
+        if (!req.file) return next(); // файла нет — контроллер сам вернёт 400 "Файл не загружен"
+
+        try {
+            const ext = path.extname(req.file.originalname).toLowerCase();
+            const blobName = `${folder}/${req.user.id}-${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`;
+            req.file.blobUrl = await uploadBuffer(blobName, req.file.buffer, req.file.mimetype);
+            next();
+        } catch (uploadErr) {
+            next(uploadErr);
+        }
     });
 };
 
-module.exports.uploadAvatar = wrap(avatarUpload);
-module.exports.uploadBanner = wrap(bannerUpload);
+module.exports.uploadAvatar = wrap(avatarUpload, 'avatars');
+module.exports.uploadBanner = wrap(bannerUpload, 'banners');

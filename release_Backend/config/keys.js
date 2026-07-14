@@ -28,5 +28,10 @@ module.exports = {
         appId: process.env.FACEBOOK_APP_ID || null,
         appSecret: process.env.FACEBOOK_APP_SECRET || null,
         callbackUrl: process.env.FACEBOOK_CALLBACK_URL || 'http://localhost:4000/api/auth/facebook/callback'
+    },
+    azureStorage: {
+        connectionString: required('AZURE_STORAGE_CONNECTION_STRING'),
+        // один контейнер на аватарки и банеры, они лежат в нём под префиксами avatars/ и banners/
+        containerName: process.env.AZURE_STORAGE_CONTAINER || 'avatars'
     }
 }
