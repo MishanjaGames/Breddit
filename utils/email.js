@@ -1,24 +1,6 @@
 const emailjs = require('@emailjs/nodejs');
 const keys = require('../config/keys');
 
-// ---------------------------------------------------------------------------
-// Відправка пошти через @emailjs/nodejs.
-//
-// EmailJS сам по собі погано підставляє {{link}}/{{email}} всередині вкладених
-// HTML-атрибутів (href і т.п.) — тому замість того, щоб покладатись на його
-// внутрішню підстановку змінних, ми РЕНДЕРИМО ПОВНИЙ HTML листа тут, на бекенді,
-// і передаємо його одним-єдиним параметром {{html}}.
-//
-// У самому EmailJS-шаблоні (template_id) достатньо одного поля Content,
-// куди вставляється сира змінна {{{html}}} (потрібне саме "Insert as HTML" /
-// перемикання типу поля на HTML при вставці змінної — інакше розмітка
-// потрапить на екран як текст, як на твоєму скріншоті).
-//
-// Це дозволяє мати ОДИН generic template в EmailJS, а всі "види" листів
-// (verify email / reset password / password changed) — це просто різні
-// HTML-рядки, зібрані нижче з одного базового лейауту.
-// ---------------------------------------------------------------------------
-
 let initialized = false;
 const ensureInit = () => {
     if (initialized) return;
@@ -40,9 +22,6 @@ const APP_NAME = keys.appName || 'Breddit';
 const WEBSITE_LINK = process.env.FRONTEND_URL || '#';
 const LOGO_URL = keys.emailLogoUrl || `${WEBSITE_LINK}/favicon.ico`;
 
-/**
- * Базовий лейаут листа (шапка з лого + біла картка з контентом + сірий футер).
- */
 const renderLayout = ({ heading, bodyHtml, to }) => `
 <div style="font-family: system-ui, sans-serif, Arial; font-size: 14px; color: #333; padding: 20px 14px; background-color: #f5f5f5;">
   <div style="max-width: 600px; margin: auto; background-color: #fff">
@@ -75,9 +54,6 @@ const renderActionEmail = ({ to, heading, paragraphs, link, linkExpiry }) => {
     return renderLayout({ heading, bodyHtml, to });
 };
 
-/**
- * Надсилає лист через EmailJS. `html` — вже повністю зібрана розмітка листа.
- */
 const sendMail = async ({ to, subject, html }) => {
     if (!keys.emailjs.serviceId || !keys.emailjs.templateId || !keys.emailjs.publicKey) {
         console.warn(`[email:DEV] EmailJS не налаштовано. To: ${to} | Subject: ${subject}`);
@@ -87,6 +63,7 @@ const sendMail = async ({ to, subject, html }) => {
     ensureInit();
 
     const templateParams = {
+        from: keys.smtp.from,
         email: to,
         to_email: to,
         subject,
@@ -101,7 +78,6 @@ const sendMail = async ({ to, subject, html }) => {
     }
 };
 
-// ---------- Конкретні листи (усі йдуть через один EmailJS template_id вище) ----------
 
 exports.sendVerificationEmail = (to, verifyUrl) => sendMail({
     to,
@@ -113,7 +89,7 @@ exports.sendVerificationEmail = (to, verifyUrl) => sendMail({
             'Дякуємо за реєстрацію! Підтвердіть свою email-адресу, натиснувши посилання нижче:'
         ],
         link: verifyUrl,
-        linkExpiry: 'Посилання дійсне 24 години.'
+        linkExpiry: 'Посилання дійсне протягом 3-х годин.'
     })
 });
 
