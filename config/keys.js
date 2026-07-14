@@ -52,6 +52,6 @@ module.exports = {
         port: Number(process.env.SMTP_PORT || 587),
         user: process.env.SMTP_USER || null,
         pass: process.env.SMTP_PASS || null,
-        from: process.env.SMTP_FROM || 'no-reply@breddit.local'
+        from: process.env.SMTP_FROM || 'no-reply.breddit@gmail.com'
     }
 }

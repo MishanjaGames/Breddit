@@ -63,6 +63,7 @@ const sendMail = async ({ to, subject, html }) => {
     ensureInit();
 
     const templateParams = {
+        app_name: APP_NAME,
         from: keys.smtp.from,
         email: to,
         to_email: to,
